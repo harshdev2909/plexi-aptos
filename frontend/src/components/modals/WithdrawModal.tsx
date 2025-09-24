@@ -1,30 +1,38 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { useVaultStore } from '@/store/useVaultStore';
-import { useToast } from '@/hooks/use-toast';
-import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../ui/dialog';
+import { Button } from '../ui/button';
+import { Input } from '../ui/input';
+import { Label } from '../ui/label';
+import { useToast } from '../../hooks/use-toast';
+import { LoadingSpinner } from '../ui/LoadingSpinner';
 import { CheckCircle, AlertCircle } from 'lucide-react';
+import { usePetraWallet } from '../../hooks/usePetraWallet';
+import { useAuth } from '../../contexts/AuthContext';
 
 interface WithdrawModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  onTransactionComplete?: () => void;
 }
 
-export function WithdrawModal({ open, onOpenChange }: WithdrawModalProps) {
+export function WithdrawModal({ open, onOpenChange, onTransactionComplete }: WithdrawModalProps) {
   const [amount, setAmount] = useState('');
   const [step, setStep] = useState<'input' | 'confirm' | 'pending' | 'success' | 'error'>('input');
   const [txHash, setTxHash] = useState('');
-  
-  const { withdraw, stats, isLoading } = useVaultStore();
+  const [isLoading, setIsLoading] = useState(false);
+  const [userShares, setUserShares] = useState(1000); // Mock user shares for now
+
+  const { isConnected, signAndSubmitTransaction } = usePetraWallet();
+  const { user } = useAuth();
   const { toast } = useToast();
+
+  // Get user address from auth context
+  const userAddress = user?.address;
 
   const handleWithdraw = async () => {
     const withdrawAmount = parseFloat(amount);
-    if (withdrawAmount <= 0 || withdrawAmount > stats.userShares) {
+    if (withdrawAmount <= 0 || withdrawAmount > userShares) {
       toast({
         title: 'Invalid Amount',
         description: 'Please enter a valid amount within your balance.',
@@ -33,22 +41,81 @@ export function WithdrawModal({ open, onOpenChange }: WithdrawModalProps) {
       return;
     }
 
-    try {
-      setStep('pending');
-      await withdraw(withdrawAmount);
-      setTxHash('0x' + Math.random().toString(16).substr(2, 8));
-      setStep('success');
+    if (!isConnected || !userAddress) {
       toast({
-        title: 'Withdrawal Successful!',
-        description: `Successfully withdrew ${withdrawAmount} USDC from Plexi vault.`,
-      });
-    } catch (error) {
-      setStep('error');
-      toast({
-        title: 'Withdrawal Failed',
-        description: 'Transaction failed. Please try again.',
+        title: 'Wallet Not Connected',
+        description: 'Please connect your wallet first',
         variant: 'destructive',
       });
+      return;
+    }
+
+    try {
+      setStep('pending');
+      setIsLoading(true);
+
+      // Create a transaction payload for the user to sign
+      const transactionPayload = {
+        type: 'entry_function_payload',
+        function: `0x98dfcb742ea92c051230fbc1defac9b9c8d298670d544c0e1a23b9620b3a27e2::vault_v2::user_withdraw`,
+        arguments: [(withdrawAmount * 100000000).toString()], // Scale by 10^8 for APT decimals
+        type_arguments: [],
+      };
+
+      // Sign and submit the transaction using Petra wallet
+      const result = await signAndSubmitTransaction(transactionPayload);
+
+      if (result.hash) {
+        setTxHash(result.hash);
+        setStep('success');
+
+        toast({
+          title: 'Withdrawal Successful!',
+          description: `Withdrew ${withdrawAmount} APT. Transaction: ${result.hash}`,
+          duration: 5000,
+        });
+
+        // Store transaction in history
+        const transactionRecord = {
+          id: result.hash,
+          type: 'WITHDRAW',
+          amount: withdrawAmount,
+          shares: withdrawAmount,
+          status: 'COMPLETED',
+          timestamp: new Date().toISOString(),
+          txHash: result.hash,
+          userAddress,
+        };
+
+        // Store in localStorage for now (in production, this would be handled by the backend)
+        const existingTransactions = JSON.parse(localStorage.getItem('plexix_transactions') || '[]');
+        existingTransactions.unshift(transactionRecord);
+        localStorage.setItem('plexix_transactions', JSON.stringify(existingTransactions));
+
+        onTransactionComplete?.();
+      } else {
+        throw new Error('Transaction failed');
+      }
+    } catch (error: any) {
+      console.error('Withdraw error:', error);
+      setStep('error');
+
+      // Check if it's a user rejection
+      if (error.message?.includes('rejected') || error.code === 4001) {
+        toast({
+          title: 'Transaction Cancelled',
+          description: 'You cancelled the transaction.',
+          variant: 'destructive',
+        });
+      } else {
+        toast({
+          title: 'Withdrawal Failed',
+          description: error.message || 'Transaction failed. Please try again.',
+          variant: 'destructive',
+        });
+      }
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -79,23 +146,23 @@ export function WithdrawModal({ open, onOpenChange }: WithdrawModalProps) {
                 className="plexi-input mt-2"
               />
               <p className="text-sm text-muted-foreground mt-2">
-                Available: {stats.userShares} shares
+                Available: {userShares} shares
               </p>
             </div>
 
             <div className="p-4 bg-muted/20 rounded-xl">
               <h4 className="font-medium mb-2">You will receive:</h4>
-              <p className="text-lg font-semibold">~{amount || '0'} USDC</p>
+              <p className="text-lg font-semibold">~{amount || '0'} APT</p>
               <p className="text-sm text-muted-foreground">Based on current share price</p>
             </div>
 
             <Button
               onClick={handleWithdraw}
-              disabled={!amount || parseFloat(amount) <= 0 || parseFloat(amount) > stats.userShares}
+              disabled={!amount || parseFloat(amount) <= 0 || parseFloat(amount) > userShares}
               className="w-full plexi-button-primary"
               size="lg"
             >
-              Withdraw USDC
+Withdraw APT
             </Button>
           </motion.div>
         );
@@ -123,7 +190,7 @@ export function WithdrawModal({ open, onOpenChange }: WithdrawModalProps) {
             <CheckCircle className="w-16 h-16 text-accent mx-auto mb-4" />
             <h3 className="text-lg font-semibold mb-2">Withdrawal Successful!</h3>
             <p className="text-muted-foreground mb-4">
-              Successfully withdrew {amount} USDC
+              Successfully withdrew {amount} APT
             </p>
             <p className="text-sm text-muted-foreground mb-6">
               Transaction: {txHash}

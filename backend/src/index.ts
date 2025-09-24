@@ -12,6 +12,7 @@ import { errorHandler, notFoundHandler } from './middleware/error-handler';
 // Import routes
 import vaultRoutes from './routes/vault';
 import healthRoutes from './routes/health';
+import authRoutes from './routes/auth';
 
 // Load environment variables
 dotenv.config();
@@ -65,6 +66,7 @@ app.use((req, res, next) => {
 // API routes
 app.use('/api/v1/health', healthRoutes);
 app.use('/api/v1/vault', vaultRoutes);
+app.use('/api/v1/auth', authRoutes);
 
 // Root endpoint
 app.get('/', (req, res) => {
@@ -74,7 +76,8 @@ app.get('/', (req, res) => {
     version: '1.0.0',
     endpoints: {
       health: '/api/v1/health',
-      vault: '/api/v1/vault'
+      vault: '/api/v1/vault',
+      auth: '/api/v1/auth'
     }
   });
 });

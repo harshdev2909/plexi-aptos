@@ -7,12 +7,11 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../co
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs';
 import { Badge } from '../components/ui/badge';
 import { Skeleton } from '../components/ui/skeleton';
-import { 
-  TrendingUp as Trading, 
-  Vault as VaultIcon, 
-  Settings, 
-  BarChart3, 
-  LogOut, 
+import {
+  Vault as VaultIcon,
+  Settings,
+  BarChart3,
+  LogOut,
   Wallet,
   TrendingUp,
   DollarSign,
@@ -20,7 +19,6 @@ import {
   AlertCircle,
   Loader2
 } from 'lucide-react';
-import TradingPage from './TradingPage';
 import VaultsPage from './VaultsPage';
 import AutomationPage from './AutomationPage';
 import AnalyticsPage from './AnalyticsPage';
@@ -28,7 +26,7 @@ import SettingsPage from './SettingsPage';
 
 const DashboardPage: React.FC = () => {
   const { user, logout } = useAuth();
-  const [activeTab, setActiveTab] = useState('trading');
+  const [activeTab, setActiveTab] = useState('vaults');
   const [forceShow, setForceShow] = useState(false);
   
   // Fetch real-time data
@@ -266,11 +264,7 @@ const DashboardPage: React.FC = () => {
 
         {/* Main Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="grid w-full grid-cols-5">
-            <TabsTrigger value="trading" className="flex items-center space-x-2">
-              <Trading className="w-4 h-4" />
-              <span>Trading</span>
-            </TabsTrigger>
+          <TabsList className="grid w-full grid-cols-4">
             <TabsTrigger value="vaults" className="flex items-center space-x-2">
               <VaultIcon className="w-4 h-4" />
               <span>Vaults</span>
@@ -289,9 +283,6 @@ const DashboardPage: React.FC = () => {
             </TabsTrigger>
           </TabsList>
 
-          <TabsContent value="trading">
-            <TradingPage />
-          </TabsContent>
           <TabsContent value="vaults">
             <VaultsPage />
           </TabsContent>
