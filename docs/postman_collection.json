@@ -1,0 +1,580 @@
+{
+  "info": {
+    "name": "PlexiX Vault API",
+    "description": "Complete API collection for PlexiX Vault Protocol on Aptos",
+    "version": "1.0.0",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{jwt_token}}",
+        "type": "string"
+      }
+    ]
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:4000",
+      "type": "string"
+    },
+    {
+      "key": "vault_address",
+      "value": "0xd2201fd19cfba1eda48016eea501816328cb0a973917689e37aaf2c29d1cc465",
+      "type": "string"
+    },
+    {
+      "key": "test_user_address",
+      "value": "0x123abc456def789",
+      "type": "string"
+    },
+    {
+      "key": "jwt_token",
+      "value": "",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "Health & Info",
+      "item": [
+        {
+          "name": "Health Check",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/health",
+              "host": ["{{base_url}}"],
+              "path": ["health"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "API Info",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api",
+              "host": ["{{base_url}}"],
+              "path": ["api"]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Public Vault Data",
+      "item": [
+        {
+          "name": "Get Vault State",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/vault/state",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "vault", "state"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get User Position",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/vault/user/{{test_user_address}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "vault", "user", "{{test_user_address}}"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Vault Events",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/vault/events?limit=50&offset=0",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "vault", "events"],
+              "query": [
+                {
+                  "key": "limit",
+                  "value": "50"
+                },
+                {
+                  "key": "offset",
+                  "value": "0"
+                },
+                {
+                  "key": "type",
+                  "value": "DepositEvent",
+                  "disabled": true
+                },
+                {
+                  "key": "userAddress",
+                  "value": "{{test_user_address}}",
+                  "disabled": true
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Vault Analytics",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/vault/analytics",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "vault", "analytics"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Convert Assets to Shares",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/vault/convert/shares?amount=1000",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "vault", "convert", "shares"],
+              "query": [
+                {
+                  "key": "amount",
+                  "value": "1000"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Convert Shares to Assets",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/vault/convert/assets?shares=500",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "vault", "convert", "assets"],
+              "query": [
+                {
+                  "key": "shares",
+                  "value": "500"
+                }
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Transactions",
+      "item": [
+        {
+          "name": "Deposit (Unsigned Payload)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"userAddress\": \"{{test_user_address}}\",\n  \"amount\": \"1000\",\n  \"useServerSigner\": false\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/tx/deposit",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "tx", "deposit"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Deposit (Server Signed)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"userAddress\": \"{{test_user_address}}\",\n  \"amount\": \"1000\",\n  \"useServerSigner\": true\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/tx/deposit",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "tx", "deposit"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Withdraw",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"userAddress\": \"{{test_user_address}}\",\n  \"amount\": \"500\",\n  \"useServerSigner\": false\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/tx/withdraw",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "tx", "withdraw"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Mint Shares",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"shares\": \"1000\",\n  \"receiver\": \"{{test_user_address}}\",\n  \"useServerSigner\": false\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/tx/mint",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "tx", "mint"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Redeem Shares",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"shares\": \"500\",\n  \"receiver\": \"{{test_user_address}}\",\n  \"owner\": \"{{test_user_address}}\",\n  \"useServerSigner\": false\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/tx/redeem",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "tx", "redeem"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Transaction Status",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/tx/status/0xabc123def456",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "tx", "status", "0xabc123def456"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get User Transactions",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/tx/user/{{test_user_address}}?limit=20&offset=0",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "tx", "user", "{{test_user_address}}"],
+              "query": [
+                {
+                  "key": "limit",
+                  "value": "20"
+                },
+                {
+                  "key": "offset",
+                  "value": "0"
+                },
+                {
+                  "key": "type",
+                  "value": "DEPOSIT",
+                  "disabled": true
+                },
+                {
+                  "key": "status",
+                  "value": "confirmed",
+                  "disabled": true
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Retry Failed Transaction",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/tx/retry/0xfailed123",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "tx", "retry", "0xfailed123"]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Admin",
+      "item": [
+        {
+          "name": "Admin Login",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    const response = pm.response.json();",
+                  "    if (response.data && response.data.token) {",
+                  "        pm.collectionVariables.set('jwt_token', response.data.token);",
+                  "        console.log('JWT token saved to collection variables');",
+                  "    }",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"password\": \"admin123\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/admin/login",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "admin", "login"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Rebalance Vault",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"hedgePercent\": 40,\n  \"farmPercent\": 60\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/admin/rebalance",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "admin", "rebalance"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Register Strategy",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Hyperliquid BTC Perps\",\n  \"riskLevel\": 3,\n  \"metadata\": {\n    \"description\": \"Bitcoin perpetual futures on Hyperliquid\",\n    \"maxLeverage\": 10,\n    \"targetApy\": 15\n  }\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/admin/register-strategy",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "admin", "register-strategy"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Add Reward Token",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"tokenAddress\": \"YIELD_TOKEN_2024\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/admin/add-reward-token",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "admin", "add-reward-token"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Harvest Yield",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"strategyId\": 1\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/admin/harvest",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "admin", "harvest"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Hedge with Hyperliquid",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"amount\": \"10000\",\n  \"direction\": \"LONG\",\n  \"orderData\": {\n    \"symbol\": \"BTC-PERP\",\n    \"leverage\": 5,\n    \"orderType\": \"market\",\n    \"slippage\": 0.01\n  }\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/admin/hedge",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "admin", "hedge"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Farm with TAPP",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"amount\": \"5000\",\n  \"poolData\": {\n    \"poolId\": \"USDC-APT-LP\",\n    \"strategy\": \"liquidity_mining\",\n    \"duration\": 30\n  }\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/admin/farm",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "admin", "farm"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Admin Dashboard",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/admin/dashboard",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "admin", "dashboard"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Create Vault Snapshot",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/admin/snapshot",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "admin", "snapshot"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get System Health",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/admin/health",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "admin", "health"]
+            }
+          },
+          "response": []
+        }
+      ]
+    }
+  ]
+}

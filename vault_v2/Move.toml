@@ -1,0 +1,16 @@
+[package]
+name = "plexi_v3"
+version = "1.0.0"
+authors = []
+
+[addresses]
+plexi = "0x98dfcb742ea92c051230fbc1defac9b9c8d298670d544c0e1a23b9620b3a27e2"
+
+[dev-addresses]
+
+[dependencies.AptosFramework]
+git = "https://github.com/aptos-labs/aptos-framework.git"
+rev = "testnet"
+subdir = "aptos-framework"
+
+[dev-dependencies]
