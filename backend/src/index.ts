@@ -13,6 +13,9 @@ import { errorHandler, notFoundHandler } from './middleware/error-handler';
 import vaultRoutes from './routes/vault';
 import healthRoutes from './routes/health';
 import authRoutes from './routes/auth';
+import hyperliquidRoutes from './routes/hyperliquid';
+import clobRoutes from './routes/clob';
+import tradesRoutes from './routes/trades';
 
 // Load environment variables
 dotenv.config();
@@ -33,8 +36,8 @@ app.use(cors({
 
 // Rate limiting
 const limiter = rateLimit({
-  windowMs: parseInt(process.env.API_RATE_LIMIT_WINDOW_MS || '900000'), // 15 minutes
-  max: parseInt(process.env.API_RATE_LIMIT_MAX_REQUESTS || '100'), // limit each IP to 100 requests per windowMs
+  windowMs: parseInt(process.env.API_RATE_LIMIT_WINDOW_MS || '60000'), // 1 minute
+  max: parseInt(process.env.API_RATE_LIMIT_MAX_REQUESTS || '1000'), // limit each IP to 1000 requests per windowMs
   message: {
     success: false,
     error: {
@@ -67,6 +70,9 @@ app.use((req, res, next) => {
 app.use('/api/v1/health', healthRoutes);
 app.use('/api/v1/vault', vaultRoutes);
 app.use('/api/v1/auth', authRoutes);
+app.use('/api/v1/hyperliquid', hyperliquidRoutes);
+app.use('/api/v1/clob', clobRoutes);
+app.use('/api/v1/trades', tradesRoutes);
 
 // Root endpoint
 app.get('/', (req, res) => {
@@ -77,7 +83,10 @@ app.get('/', (req, res) => {
     endpoints: {
       health: '/api/v1/health',
       vault: '/api/v1/vault',
-      auth: '/api/v1/auth'
+      auth: '/api/v1/auth',
+      hyperliquid: '/api/v1/hyperliquid',
+      clob: '/api/v1/clob',
+      trades: '/api/v1/trades'
     }
   });
 });

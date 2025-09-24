@@ -65,7 +65,13 @@ export class VaultService {
       const sharePrice = shares > 0 ? assets / shares : 0;
 
       logger.info(`Real vault state from contract: ${assets} assets, ${shares} shares, ${sharePrice} price`);
-      
+
+      // If blockchain has no meaningful data, fall back to database calculation
+      if (assets === 0 && shares === 0) {
+        logger.info('Blockchain has no data, calculating from database');
+        throw new Error('Blockchain data empty, using database calculation');
+      }
+
       return {
         totalAssets: assets,
         totalShares: shares,
@@ -78,25 +84,24 @@ export class VaultService {
       const { User } = await import('../models/User');
       const { Transaction: TransactionModel } = await import('../models/Transaction');
       
-      // Get all users and their total shares
-      const users = await User.find({});
-      const totalShares = users.reduce((sum, user) => sum + user.shares, 0);
-      
-      // Get all completed deposits to calculate total assets
-      const deposits = await TransactionModel.find({ 
-        type: 'deposit', 
-        status: 'completed' 
-      });
-      const withdrawals = await TransactionModel.find({ 
-        type: 'withdraw', 
-        status: 'completed' 
-      });
-      
-      const totalDeposits = deposits.reduce((sum, tx) => sum + tx.amount, 0);
-      const totalWithdrawals = withdrawals.reduce((sum, tx) => sum + tx.amount, 0);
-      const totalAssets = totalDeposits - totalWithdrawals;
-      
-      const sharePrice = totalShares > 0 ? totalAssets / totalShares : 1.0;
+      // Calculate total shares from all transactions instead of User models
+      const allDeposits = await TransactionModel.find({ type: 'deposit', status: 'completed' });
+      const allWithdrawals = await TransactionModel.find({ type: 'withdraw', status: 'completed' });
+
+      const totalDepositShares = allDeposits.reduce((sum, tx) => sum + tx.shares, 0);
+      const totalWithdrawalShares = allWithdrawals.reduce((sum, tx) => sum + tx.shares, 0);
+      const totalShares = Math.max(totalDepositShares - totalWithdrawalShares, 0);
+
+      // Calculate total assets from the same transaction data
+      const totalDeposits = allDeposits.reduce((sum, tx) => sum + tx.amount, 0);
+      const totalWithdrawals = allWithdrawals.reduce((sum, tx) => sum + tx.amount, 0);
+      const totalAssets = Math.max(totalDeposits - totalWithdrawals, 0);
+
+      // If we have no assets but have shares, assume 1:1 ratio for safety
+      // If we have assets, calculate share price normally
+      const sharePrice = totalShares > 0 ?
+        (totalAssets > 0 ? totalAssets / totalShares : 1.0) :
+        1.0;
 
       return {
         totalAssets: Math.max(0, totalAssets),

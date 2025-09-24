@@ -49,22 +49,26 @@ export class PriceService {
     }
 
     try {
-      // Fallback to CoinCap API
-      const response = await fetch('https://api.coincap.io/v2/assets/aptos');
-      
+      // Fallback to CryptoCompare API
+      const response = await fetch(
+        'https://min-api.cryptocompare.com/data/price?fsym=APT&tsyms=USD'
+      );
+
       if (response.ok) {
         const data = await response.json();
-        const priceData: PriceData = {
-          price: parseFloat(data.data.priceUsd),
-          symbol: 'APT',
-          change24h: parseFloat(data.data.changePercent24Hr) || 0
-        };
-        
-        this.cache.set(cacheKey, { data: priceData, timestamp: Date.now() });
-        return priceData;
+        if (data.USD) {
+          const priceData: PriceData = {
+            price: data.USD,
+            symbol: 'APT',
+            change24h: 0 // CryptoCompare free API doesn't include 24h change
+          };
+
+          this.cache.set(cacheKey, { data: priceData, timestamp: Date.now() });
+          return priceData;
+        }
       }
     } catch (error) {
-      console.warn('CoinCap API failed, using default price:', error);
+      console.warn('CryptoCompare API failed, using default price:', error);
     }
 
     // Fallback to default price if all APIs fail

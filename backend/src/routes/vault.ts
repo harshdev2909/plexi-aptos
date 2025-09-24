@@ -137,22 +137,25 @@ router.get('/user/:address', asyncHandler(async (req: Request, res: Response): P
   const { address } = req.params;
 
   try {
-    // Find user
-    const user = await User.findOne({ walletAddress: address });
-    if (!user) {
-      res.status(404).json({
-        success: false,
-        error: {
-          message: 'User not found',
-          statusCode: 404
-        }
-      });
-      return;
-    }
+    // Calculate user shares from transactions instead of User model
+    const deposits = await Transaction.find({
+      walletAddress: address,
+      type: 'deposit',
+      status: 'completed'
+    });
+    const withdrawals = await Transaction.find({
+      walletAddress: address,
+      type: 'withdraw',
+      status: 'completed'
+    });
+
+    const totalDepositsShares = deposits.reduce((sum, tx) => sum + tx.shares, 0);
+    const totalWithdrawalsShares = withdrawals.reduce((sum, tx) => sum + tx.shares, 0);
+    const userShares = Math.max(totalDepositsShares - totalWithdrawalsShares, 0);
 
     // Get vault state to calculate assets equivalent
     const vaultState = await vaultService.getVaultState();
-    const assetsEquivalent = user.shares * vaultState.sharePrice;
+    const assetsEquivalent = userShares * vaultState.sharePrice;
 
     // Get user's transaction history
     const transactions = await Transaction.find({ walletAddress: address })
@@ -163,8 +166,8 @@ router.get('/user/:address', asyncHandler(async (req: Request, res: Response): P
     res.status(200).json({
       success: true,
       data: {
-        walletAddress: user.walletAddress,
-        shares: user.shares,
+        walletAddress: address,
+        shares: userShares,
         assetsEquivalent,
         sharePrice: vaultState.sharePrice,
         txHistory: transactions
@@ -261,6 +264,44 @@ router.get('/transactions/:txHash', asyncHandler(async (req: Request, res: Respo
     });
   } catch (error) {
     logger.error('Get transaction error:', error);
+    throw error;
+  }
+}));
+
+/**
+ * GET /vault/events
+ * Get vault events (for dashboard data fetching)
+ */
+router.get('/events', asyncHandler(async (req: Request, res: Response) => {
+  const { limit = '50' } = req.query;
+  const limitNum = Math.min(parseInt(limit as string) || 50, 100);
+
+  try {
+    // Get recent transactions as "events"
+    const transactions = await Transaction.find({})
+      .sort({ createdAt: -1 })
+      .limit(limitNum)
+      .select('-__v');
+
+    // Transform transactions to event format expected by frontend
+    const events = transactions.map(tx => ({
+      id: tx._id.toString(),
+      eventType: tx.type === 'deposit' ? 'DepositEvent' : 'WithdrawEvent',
+      txHash: tx.txHash,
+      payload: {
+        amount: tx.amount.toString(),
+        user: tx.walletAddress,
+        shares: tx.shares?.toString() || '0'
+      },
+      createdAt: tx.createdAt.toISOString()
+    }));
+
+    res.status(200).json({
+      success: true,
+      data: events
+    });
+  } catch (error) {
+    logger.error('Get vault events error:', error);
     throw error;
   }
 }));

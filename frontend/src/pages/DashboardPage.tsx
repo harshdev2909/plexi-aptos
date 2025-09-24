@@ -1,7 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useVaultData } from '../hooks/useVaultData';
 import { useTradingData } from '../hooks/useTradingData';
+import { priceService, PriceData } from '../services/priceService';
+import { formatNumber, formatCurrency, formatAddress } from '../utils/formatters';
 import { Button } from '../components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs';
@@ -28,6 +30,7 @@ const DashboardPage: React.FC = () => {
   const { user, logout } = useAuth();
   const [activeTab, setActiveTab] = useState('vaults');
   const [forceShow, setForceShow] = useState(false);
+  const [aptPrice, setAptPrice] = useState<PriceData | null>(null);
   
   // Fetch real-time data
   const { 
@@ -48,10 +51,27 @@ const DashboardPage: React.FC = () => {
     refetch: refetchTrading 
   } = useTradingData();
 
+  // Fetch APT price data
+  useEffect(() => {
+    const fetchAptPrice = async () => {
+      try {
+        const price = await priceService.getAptPrice();
+        setAptPrice(price);
+      } catch (error) {
+        console.warn('Failed to fetch APT price:', error);
+      }
+    };
+
+    fetchAptPrice();
+
+    // Refresh price every 30 seconds
+    const interval = setInterval(fetchAptPrice, 30000);
+    return () => clearInterval(interval);
+  }, []);
+
   // Force show dashboard after 5 seconds to prevent infinite loading
-  React.useEffect(() => {
+  useEffect(() => {
     const timer = setTimeout(() => {
-      console.log('DashboardPage: Force showing dashboard after timeout');
       setForceShow(true);
     }, 5000);
 
@@ -67,58 +87,34 @@ const DashboardPage: React.FC = () => {
     refetchTrading();
   };
 
-  const formatNumber = (num: string | number, decimals: number = 2) => {
-    const value = typeof num === 'string' ? parseFloat(num) : num;
-    return new Intl.NumberFormat('en-US', {
-      minimumFractionDigits: decimals,
-      maximumFractionDigits: decimals,
-    }).format(value);
+  const getUsdValue = (amount: string | number, assetType: string = 'APT') => {
+    // Only apply APT price conversion for APT assets
+    if (assetType === 'APT' && aptPrice) {
+      const apt = typeof amount === 'string' ? parseFloat(amount) : amount;
+      return apt * aptPrice.price;
+    }
+
+    // For USDC and other USD-denominated assets, return the amount as-is
+    if (assetType === 'USDC' || assetType === 'USD') {
+      return typeof amount === 'string' ? parseFloat(amount) : amount;
+    }
+
+    // For unknown asset types, don't convert
+    return null;
   };
 
-  const formatCurrency = (amount: string | number) => {
-    const value = typeof amount === 'string' ? parseFloat(amount) : amount;
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD',
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    }).format(value);
-  };
 
-  const formatAddress = (address: string) => {
-    return `${address.slice(0, 6)}...${address.slice(-4)}`;
-  };
-
-  // Debug logging
-  console.log('DashboardPage: Loading states', { 
-    vaultLoading, 
-    tradingLoading, 
-    vaultState, 
-    userPosition, 
-    vaultEvents,
-    marketData,
-    positions,
-    trades
-  });
-
-  // Don't show error screen, just show loading or continue with mock data
+  // Show loading state while data is being fetched
   if ((vaultLoading || tradingLoading) && !forceShow) {
-    console.log('DashboardPage: Still loading, showing loader');
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
           <Loader2 className="w-8 h-8 animate-spin mx-auto mb-4" />
           <p className="text-gray-600">Loading dashboard...</p>
-          <p className="text-sm text-gray-500 mt-2">
-            Vault: {vaultLoading ? 'Loading' : 'Loaded'} | 
-            Trading: {tradingLoading ? 'Loading' : 'Loaded'}
-          </p>
         </div>
       </div>
     );
   }
-
-  console.log('DashboardPage: Rendering dashboard');
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -139,7 +135,13 @@ const DashboardPage: React.FC = () => {
                     {formatAddress(user.address)}
                   </span>
                   <Badge variant="secondary">
-                    {formatCurrency(user.balance)} APT
+                    {(() => {
+                      // User balance is in APT, so use APT conversion
+                      const usdValue = getUsdValue(user.balance, 'APT');
+                      return usdValue
+                        ? `${formatCurrency(usdValue)} (${formatNumber(user.balance)} APT)`
+                        : `${formatNumber(user.balance)} APT`;
+                    })()}
                   </Badge>
                 </div>
               )}
@@ -170,10 +172,20 @@ const DashboardPage: React.FC = () => {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">
-                {vaultState ? formatCurrency(vaultState.totalAssets) : '$1,000,000.00'}
+                {(() => {
+                  if (!vaultState) return '$1,000,000.00';
+                  const assetType = vaultState.assetToken || 'USDC'; // Default to USDC for vault assets
+                  const usdValue = getUsdValue(vaultState.totalAssets, assetType);
+                  return usdValue !== null ? formatCurrency(usdValue) : formatCurrency(vaultState.totalAssets);
+                })()}
               </div>
               <p className="text-xs text-muted-foreground">
-                {vaultState?.assetToken || 'USDC'}
+                {vaultState ? `${formatNumber(vaultState.totalAssets)} ${vaultState.assetToken || 'APT'}` : 'USDC'}
+                {aptPrice && (
+                  <span className={`ml-2 ${aptPrice.change24h >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                    {aptPrice.change24h >= 0 ? '+' : ''}{aptPrice.change24h.toFixed(2)}%
+                  </span>
+                )}
               </p>
             </CardContent>
           </Card>
@@ -202,10 +214,20 @@ const DashboardPage: React.FC = () => {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">
-                {userPosition ? formatCurrency(userPosition.assetsEquivalent) : '$1,000.00'}
+                {(() => {
+                  if (!userPosition) return '$1,000.00';
+                  // User position assets equivalent is typically in USDC for vault shares
+                  const usdValue = getUsdValue(userPosition.assetsEquivalent, 'USDC');
+                  return usdValue !== null ? formatCurrency(usdValue) : formatCurrency(userPosition.assetsEquivalent);
+                })()}
               </div>
               <p className="text-xs text-muted-foreground">
-                {userPosition ? formatNumber(userPosition.shares) : '1,000'} shares
+                {userPosition ? `${formatNumber(userPosition.shares)} shares` : '1,000 shares'}
+                {aptPrice && userPosition && (
+                  <span className="block">
+                    {formatNumber(userPosition.assetsEquivalent)} APT @ ${aptPrice.price.toFixed(2)}
+                  </span>
+                )}
               </p>
             </CardContent>
           </Card>
