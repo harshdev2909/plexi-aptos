@@ -56,7 +56,7 @@ export class VaultService {
     
     this.aptos = new Aptos(config);
     this.vaultModuleAddress = process.env.VAULT_MODULE_ADDRESS || '0x98dfcb742ea92c051230fbc1defac9b9c8d298670d544c0e1a23b9620b3a27e2';
-    this.vaultModuleName = process.env.VAULT_MODULE_NAME || 'vault_v2';
+    this.vaultModuleName = 'vault_v4';
     
     logger.info('Vault service initialized - using user wallets from frontend');
   }

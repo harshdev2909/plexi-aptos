@@ -41,7 +41,7 @@ export const VaultOperations: React.FC<VaultOperationsProps> = ({
 
       const transactionPayload = {
         type: 'entry_function_payload',
-        function: `0x98dfcb742ea92c051230fbc1defac9b9c8d298670d544c0e1a23b9620b3a27e2::vault_v2::register_apt`,
+        function: `0x98dfcb742ea92c051230fbc1defac9b9c8d298670d544c0e1a23b9620b3a27e2::vault_v4::register_apt`,
         arguments: [],
         type_arguments: [],
       };
@@ -85,7 +85,7 @@ export const VaultOperations: React.FC<VaultOperationsProps> = ({
       // Create a transaction payload for the user to sign
       const transactionPayload = {
         type: 'entry_function_payload',
-        function: `0x98dfcb742ea92c051230fbc1defac9b9c8d298670d544c0e1a23b9620b3a27e2::vault_v2::user_mint`,
+        function: `0x98dfcb742ea92c051230fbc1defac9b9c8d298670d544c0e1a23b9620b3a27e2::vault_v4::user_mint`,
         arguments: [(mintAmount * 100000000).toString()], // Scale by 10^8 for APT decimals
         type_arguments: [],
       };
@@ -161,7 +161,7 @@ export const VaultOperations: React.FC<VaultOperationsProps> = ({
       // Create a transaction payload for the user to sign
       const transactionPayload = {
         type: 'entry_function_payload',
-        function: `0x98dfcb742ea92c051230fbc1defac9b9c8d298670d544c0e1a23b9620b3a27e2::vault_v2::user_deposit`,
+        function: `0x98dfcb742ea92c051230fbc1defac9b9c8d298670d544c0e1a23b9620b3a27e2::vault_v4::user_deposit`,
         arguments: [(depositAmount * 100000000).toString()], // Scale by 10^8 for APT decimals
         type_arguments: [],
       };
@@ -238,7 +238,7 @@ export const VaultOperations: React.FC<VaultOperationsProps> = ({
       // Create a transaction payload for the user to sign
       const transactionPayload = {
         type: 'entry_function_payload',
-        function: `0x98dfcb742ea92c051230fbc1defac9b9c8d298670d544c0e1a23b9620b3a27e2::vault_v2::user_withdraw`,
+        function: `0x98dfcb742ea92c051230fbc1defac9b9c8d298670d544c0e1a23b9620b3a27e2::vault_v4::user_withdraw`,
         arguments: [(withdrawAmount * 100000000).toString()], // Scale by 10^8 for APT decimals
         type_arguments: [],
       };

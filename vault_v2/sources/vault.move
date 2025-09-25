@@ -1,7 +1,7 @@
 /// @title PlexiX Vault Protocol
 /// @notice A production-grade vault system implementing ERC-4626-like functionality
 /// @dev Built for Aptos Move with extensible DeFi features
-module plexi::vault_v3 {
+module plexi::vault_v4 {
     use std::string::{Self, String};
     use std::error;
     use std::option::{Self, Option};
@@ -207,25 +207,25 @@ module plexi::vault_v3 {
     ) acquires VaultState {
         let user_addr = signer::address_of(user);
         
-        // Transfer USDC from user to vault
-        let usdc_payment = fungible_asset::withdraw(USDC_OBJECT, user, amount);
+        // Transfer APT from user to vault
+        let apt_payment = coin::withdraw<AptosCoin>(user, amount);
         let vault_state = borrow_global_mut<VaultState>(@plexi);
-        fungible_asset::merge(&mut vault_state.usdc_assets, usdc_payment);
+        coin::merge(&mut vault_state.apt_coins, apt_payment);
         
         // Call the internal deposit function
         deposit(user, amount, user_addr);
     }
 
-    /// Admin deposit function (original)
+    /// Public deposit function
     public entry fun deposit(
-        admin: &signer,
+        user: &signer,
         amount: u64,
         receiver: address,
     ) acquires VaultState {
         assert!(amount > 0, error::invalid_argument(E_ZERO_AMOUNT));
         assert!(receiver != @0x0, error::invalid_argument(E_INVALID_RECEIVER));
         
-        let vault_state = borrow_global_mut<VaultState>(signer::address_of(admin));
+        let vault_state = borrow_global_mut<VaultState>(@plexi);
         assert!(vault_state.is_initialized, error::not_found(E_NOT_INITIALIZED));
 
         // Calculate shares to mint
@@ -272,15 +272,15 @@ module plexi::vault_v3 {
         // Call the internal withdraw function first
         withdraw(user, amount, user_addr, user_addr);
         
-        // Transfer USDC from vault back to user
+        // Transfer APT from vault back to user
         let vault_state = borrow_global_mut<VaultState>(@plexi);
-        let usdc_payment = fungible_asset::extract(&mut vault_state.usdc_assets, amount);
-        fungible_asset::deposit(USDC_OBJECT, user_addr, usdc_payment);
+        let apt_payment = coin::extract(&mut vault_state.apt_coins, amount);
+        coin::deposit(user_addr, apt_payment);
     }
 
-    /// Admin withdraw function (original)
+    /// Public withdraw function
     public entry fun withdraw(
-        admin: &signer,
+        user: &signer,
         amount: u64,
         receiver: address,
         owner: address,
@@ -289,7 +289,7 @@ module plexi::vault_v3 {
         assert!(receiver != @0x0, error::invalid_argument(E_INVALID_RECEIVER));
         assert!(owner != @0x0, error::invalid_argument(E_INVALID_OWNER));
         
-        let vault_state = borrow_global_mut<VaultState>(signer::address_of(admin));
+        let vault_state = borrow_global_mut<VaultState>(@plexi);
         assert!(vault_state.is_initialized, error::not_found(E_NOT_INITIALIZED));
         assert!(amount <= vault_state.total_assets, error::invalid_argument(E_INSUFFICIENT_BALANCE));
 
@@ -333,32 +333,32 @@ module plexi::vault_v3 {
     ) acquires VaultState {
         let user_addr = signer::address_of(user);
         
-        // Calculate equivalent USDC amount for the shares
+        // Calculate equivalent APT amount for the shares
         let vault_state = borrow_global_mut<VaultState>(@plexi);
-        let usdc_amount = if (vault_state.total_shares == 0) {
+        let apt_amount = if (vault_state.total_shares == 0) {
             shares // 1:1 ratio for first mint
         } else {
             (shares * vault_state.total_assets) / vault_state.total_shares
         };
         
-        // Transfer USDC from user to vault
-        let usdc_payment = fungible_asset::withdraw(USDC_OBJECT, user, usdc_amount);
-        fungible_asset::merge(&mut vault_state.usdc_assets, usdc_payment);
+        // Transfer APT from user to vault
+        let apt_payment = coin::withdraw<AptosCoin>(user, apt_amount);
+        coin::merge(&mut vault_state.apt_coins, apt_payment);
         
         // Call the internal mint function
         mint(user, shares, user_addr);
     }
 
-    /// Admin mint function (original)
+    /// Public mint function
     public entry fun mint(
-        admin: &signer,
+        user: &signer,
         shares: u64,
         receiver: address,
     ) acquires VaultState {
         assert!(shares > 0, error::invalid_argument(E_ZERO_AMOUNT));
         assert!(receiver != @0x0, error::invalid_argument(E_INVALID_RECEIVER));
         
-        let vault_state = borrow_global_mut<VaultState>(signer::address_of(admin));
+        let vault_state = borrow_global_mut<VaultState>(@plexi);
         assert!(vault_state.is_initialized, error::not_found(E_NOT_INITIALIZED));
 
         // Calculate assets needed
@@ -395,7 +395,7 @@ module plexi::vault_v3 {
     /// @param receiver: Address to receive the assets
     /// @param owner: Address that owns the shares
     public entry fun redeem(
-        admin: &signer,
+        user: &signer,
         shares: u64,
         receiver: address,
         owner: address,
@@ -404,7 +404,7 @@ module plexi::vault_v3 {
         assert!(receiver != @0x0, error::invalid_argument(E_INVALID_RECEIVER));
         assert!(owner != @0x0, error::invalid_argument(E_INVALID_OWNER));
         
-        let vault_state = borrow_global_mut<VaultState>(signer::address_of(admin));
+        let vault_state = borrow_global_mut<VaultState>(@plexi);
         assert!(vault_state.is_initialized, error::not_found(E_NOT_INITIALIZED));
 
         // Calculate assets to return
