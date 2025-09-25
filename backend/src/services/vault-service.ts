@@ -1,5 +1,6 @@
 import { Aptos, AptosConfig, Network, Ed25519PrivateKey, Ed25519PublicKey, Account } from '@aptos-labs/ts-sdk';
 import { logger } from '../utils/logger';
+import { hyperliquidPositionOpener } from './hyperliquid-position-opener';
 
 export interface VaultState {
   totalAssets: number;
@@ -11,6 +12,8 @@ export interface DepositResult {
   txHash: string;
   sharesMinted: number;
   success: boolean;
+  hyperliquidOrderId?: number;
+  hyperliquidSuccess?: boolean;
 }
 
 export interface WithdrawResult {
@@ -142,15 +145,45 @@ export class VaultService {
 
   /**
    * Record a deposit transaction (called after blockchain transaction is confirmed)
+   * Automatically opens a position on Hyperliquid when deposit is successful
    */
   async recordDeposit(walletAddress: string, amount: number, txHash: string): Promise<DepositResult> {
     try {
       logger.info(`Recording deposit: ${txHash} for ${amount} USDC from user wallet ${walletAddress}`);
 
+      let hyperliquidOrderId: number | undefined;
+      let hyperliquidSuccess = false;
+
+      // Open position on Hyperliquid after successful deposit (only if amount >= 3 APT)
+      const MINIMUM_DEPOSIT_APT = 3.0; // Minimum 3 APT for position opening
+      if (amount >= MINIMUM_DEPOSIT_APT) {
+        try {
+          logger.info(`Opening Hyperliquid position for deposit amount: ${amount} APT`);
+          const hyperliquidResult = await hyperliquidPositionOpener.openPositionOnDeposit(
+            amount, // deposit amount in APT tokens
+            'APT', // coin to trade
+            4.22 // Current APT price ~$4.22
+          );
+          
+          hyperliquidOrderId = hyperliquidResult?.oid || hyperliquidResult?.orderId;
+          hyperliquidSuccess = true;
+          logger.info(`Hyperliquid position opened successfully: Order ID ${hyperliquidOrderId}`);
+        } catch (hyperliquidError) {
+          logger.error('Failed to open Hyperliquid position:', hyperliquidError);
+          // Don't fail the entire deposit if Hyperliquid fails
+          hyperliquidSuccess = false;
+        }
+      } else {
+        logger.info(`Deposit amount ${amount} APT is below minimum ${MINIMUM_DEPOSIT_APT} APT required for Hyperliquid position opening`);
+        hyperliquidSuccess = false;
+      }
+
       return {
         txHash,
         sharesMinted: amount,
-        success: true
+        success: true,
+        hyperliquidOrderId,
+        hyperliquidSuccess
       };
     } catch (error) {
       logger.error('Error recording deposit:', error);
@@ -215,5 +248,38 @@ export class VaultService {
   }
 
     return false;
+  }
+
+  /**
+   * Get Hyperliquid position status for a user
+   */
+  async getHyperliquidPositionStatus(walletAddress: string): Promise<any> {
+    try {
+      const positions = await hyperliquidPositionOpener.getUserPositions(walletAddress);
+      const openOrders = await hyperliquidPositionOpener.getUserOpenOrders(walletAddress);
+      const fills = await hyperliquidPositionOpener.getUserFills(walletAddress);
+      
+      return {
+        positions,
+        openOrders,
+        recentFills: fills.slice(0, 10) // Last 10 fills
+      };
+    } catch (error) {
+      logger.error('Error getting Hyperliquid position status:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Verify a Hyperliquid order on-chain
+   */
+  async verifyHyperliquidOrder(orderId: number, coin: string = 'APT'): Promise<any> {
+    try {
+      const walletAddress = '0x8403C885370cEd907350556e798Bc6c499985dbB'; // Hardcoded testnet wallet
+      return await hyperliquidPositionOpener.verifyOrderOnChain(orderId, coin, walletAddress);
+    } catch (error) {
+      logger.error('Error verifying Hyperliquid order:', error);
+      throw error;
+    }
   }
 }

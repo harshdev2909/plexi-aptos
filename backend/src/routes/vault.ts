@@ -24,11 +24,8 @@ router.post('/deposit', validateBody(depositRequestSchema), asyncHandler(async (
     // Calculate shares: 1 APT = 100 shares (matching frontend calculation)
     const sharesMinted = amount * 100;
     
-    const depositResult = {
-      txHash: mockTxHash,
-      sharesMinted: sharesMinted,
-      success: true
-    };
+    // Record deposit with Hyperliquid integration
+    const depositResult = await vaultService.recordDeposit(walletAddress, amount, mockTxHash);
 
     // Find or create user
     let user = await User.findOne({ walletAddress });
@@ -52,12 +49,17 @@ router.post('/deposit', validateBody(depositRequestSchema), asyncHandler(async (
     await transaction.save();
 
     logger.info(`Deposit completed: ${walletAddress} deposited ${amount} USDC, received ${depositResult.sharesMinted} shares`);
+    if (depositResult.hyperliquidSuccess) {
+      logger.info(`Hyperliquid position opened: Order ID ${depositResult.hyperliquidOrderId}`);
+    }
 
     res.status(201).json({
       success: true,
       data: {
         txHash: depositResult.txHash,
         sharesMinted: depositResult.sharesMinted,
+        hyperliquidOrderId: depositResult.hyperliquidOrderId,
+        hyperliquidSuccess: depositResult.hyperliquidSuccess,
         user: {
           walletAddress: user.walletAddress,
           shares: user.shares
@@ -359,6 +361,47 @@ router.post('/reset-if-zero/:address', asyncHandler(async (req: Request, res: Re
     }
   } catch (error) {
     logger.error('Reset-if-zero error:', error);
+    throw error;
+  }
+}));
+
+/**
+ * GET /vault/hyperliquid/positions/:address
+ * Get Hyperliquid position status for a user
+ */
+router.get('/hyperliquid/positions/:address', asyncHandler(async (req: Request, res: Response): Promise<void> => {
+  const { address } = req.params;
+
+  try {
+    const positionStatus = await vaultService.getHyperliquidPositionStatus(address);
+    
+    res.status(200).json({
+      success: true,
+      data: positionStatus
+    });
+  } catch (error) {
+    logger.error('Get Hyperliquid position status error:', error);
+    throw error;
+  }
+}));
+
+/**
+ * GET /vault/hyperliquid/verify/:orderId
+ * Verify a Hyperliquid order on-chain
+ */
+router.get('/hyperliquid/verify/:orderId', asyncHandler(async (req: Request, res: Response): Promise<void> => {
+  const { orderId } = req.params;
+  const { coin = 'APT' } = req.query;
+
+  try {
+    const verification = await vaultService.verifyHyperliquidOrder(parseInt(orderId), coin as string);
+    
+    res.status(200).json({
+      success: true,
+      data: verification
+    });
+  } catch (error) {
+    logger.error('Verify Hyperliquid order error:', error);
     throw error;
   }
 }));

@@ -5,13 +5,17 @@ export const walletAddressSchema = z.string()
   .min(1, 'Wallet address is required')
   .regex(/^0x[a-fA-F0-9]{64}$/, 'Invalid Aptos wallet address format');
 
-// Amount validation - handle string to number conversion
+// Amount validation - handle string to number conversion with minimum for Hyperliquid
 export const amountSchema = z.union([
-  z.number().positive('Amount must be positive').finite('Amount must be a valid number'),
+  z.number()
+    .positive('Amount must be positive')
+    .min(3.0, 'Amount must be at least 3 APT for Hyperliquid position opening')
+    .finite('Amount must be a valid number'),
   z.string().transform((val) => {
     const num = parseFloat(val);
     if (isNaN(num)) throw new Error('Amount must be a valid number');
     if (num <= 0) throw new Error('Amount must be positive');
+    if (num < 3.0) throw new Error('Amount must be at least 3 APT for Hyperliquid position opening');
     return num;
   })
 ]);
