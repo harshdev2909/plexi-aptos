@@ -64,8 +64,8 @@ export default {
           green: "hsl(var(--neon-green))",
         },
         surface: {
-          DEFAULT: "hsl(var(--dark-surface))",
-          darker: "hsl(var(--darker-surface))",
+          DEFAULT: "hsl(var(--light-surface))",
+          lighter: "hsl(var(--lighter-surface))",
         },
       },
       backgroundImage: {

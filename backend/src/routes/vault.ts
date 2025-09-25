@@ -20,9 +20,13 @@ router.post('/deposit', validateBody(depositRequestSchema), asyncHandler(async (
   try {
     // For now, we'll simulate the deposit since the frontend handles the actual transaction
     const mockTxHash = `0x${Math.random().toString(16).substr(2, 64).padEnd(64, '0')}`;
+    
+    // Calculate shares: 1 APT = 100 shares (matching frontend calculation)
+    const sharesMinted = amount * 100;
+    
     const depositResult = {
       txHash: mockTxHash,
-      sharesMinted: amount,
+      sharesMinted: sharesMinted,
       success: true
     };
 
@@ -285,7 +289,7 @@ router.get('/events', asyncHandler(async (req: Request, res: Response) => {
 
     // Transform transactions to event format expected by frontend
     const events = transactions.map(tx => ({
-      id: tx._id.toString(),
+      id: (tx._id as any).toString(),
       eventType: tx.type === 'deposit' ? 'DepositEvent' : 'WithdrawEvent',
       txHash: tx.txHash,
       payload: {
@@ -302,6 +306,59 @@ router.get('/events', asyncHandler(async (req: Request, res: Response) => {
     });
   } catch (error) {
     logger.error('Get vault events error:', error);
+    throw error;
+  }
+}));
+
+
+/**
+ * POST /vault/reset-if-zero/:address
+ * Check contract vault value for user address and reset database if zero
+ */
+router.post('/reset-if-zero/:address', asyncHandler(async (req: Request, res: Response) => {
+  const { address } = req.params;
+
+  try {
+    // First, check the contract vault value for this address
+    const userShares = await vaultService.getUserShares(address);
+
+    logger.info(`Contract check for ${address}: ${userShares} shares`);
+
+    // If shares are effectively zero (less than 0.001), reset the database
+    if (userShares < 0.001) {
+      logger.info(`User ${address} has effectively zero shares (${userShares}), resetting database...`);
+
+      // Delete all transactions for this user
+      const deletedTransactions = await Transaction.deleteMany({ walletAddress: address });
+
+      // Delete or reset the user record
+      await User.findOneAndDelete({ walletAddress: address });
+
+      logger.info(`Reset complete for ${address}: deleted ${deletedTransactions.deletedCount} transactions and user record`);
+
+      res.status(200).json({
+        success: true,
+        message: `Database reset completed for ${address}`,
+        data: {
+          contractShares: userShares,
+          deletedTransactions: deletedTransactions.deletedCount,
+          action: 'reset'
+        }
+      });
+    } else {
+      logger.info(`User ${address} has ${userShares} shares, no reset needed`);
+
+      res.status(200).json({
+        success: true,
+        message: `No reset needed for ${address}`,
+        data: {
+          contractShares: userShares,
+          action: 'no_reset'
+        }
+      });
+    }
+  } catch (error) {
+    logger.error('Reset-if-zero error:', error);
     throw error;
   }
 }));

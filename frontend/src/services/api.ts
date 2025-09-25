@@ -81,41 +81,28 @@ const cachedApiCall = async <T>(
 
 // Helper function to get mock vault state
 const getMockVaultState = (): VaultState => ({
-  totalAssets: '292.00', // Match the real backend data
-  totalShares: '0',
-  assetToken: 'USDC', // Vault assets are in USDC
+  totalAssets: '0.00', // Default to 0 when server unavailable
+  totalShares: '0.00',
+  assetToken: 'APT', // Vault assets are in APT (Aptos native token)
   isInitialized: true,
   strategiesCount: 3,
-  rewardTokens: ['APT', 'USDC'],
+  rewardTokens: ['APT'],
   lastRebalanceTimestamp: Date.now() - 3600000, // 1 hour ago
 });
 
 // Helper function to get mock user position
 const getMockUserPosition = (address: string): UserPosition => ({
-  userShares: '1000.00',
-  assetsEquivalent: '1000.00',
+  shares: '0.00', // Default to 0 when server unavailable
+  assetsEquivalent: '0.00', // Default to 0 when server unavailable
   pendingRewards: {
-    'APT': '5.25',
-    'USDC': '10.50'
+    'APT': '0.00'
   }
 });
 
 // Helper function to get mock vault events
 const getMockVaultEvents = (limit: number): VaultEvent[] => {
-  const events: VaultEvent[] = [];
-  for (let i = 0; i < limit; i++) {
-    events.push({
-      id: `event-${i}`,
-      eventType: i % 2 === 0 ? 'DepositEvent' : 'WithdrawEvent',
-      txHash: `0x${Math.random().toString(16).substr(2, 64)}`,
-      payload: {
-        amount: (Math.random() * 1000).toFixed(2),
-        user: '0x98dfcb742ea92c051230fbc1defac9b9c8d298670d544c0e1a23b9620b3a27e2'
-      },
-      createdAt: new Date(Date.now() - i * 60000).toISOString()
-    });
-  }
-  return events;
+  // Return empty array when server unavailable to show "No recent activity"
+  return [];
 };
 
 // Types
@@ -130,7 +117,7 @@ export interface VaultState {
 }
 
 export interface UserPosition {
-  userShares: string;
+  shares: string;
   assetsEquivalent: string;
   pendingRewards: Record<string, string>;
 }
@@ -396,13 +383,30 @@ export const apiService = {
   },
 
   getUserTransactions: async (userAddress: string) => {
-    const response = await api.get(`/tx/user/${userAddress}`);
-    return response.data;
+    try {
+      // Use the vault/user endpoint which includes transaction history
+      const response = await api.get(`/vault/user/${userAddress}`);
+      return {
+        data: response.data.data?.txHistory || []
+      };
+    } catch (error) {
+      console.warn('Failed to fetch user transactions from backend:', error);
+      // Return empty data if backend is unavailable
+      return {
+        data: []
+      };
+    }
   },
 
   // Health check
   health: async (): Promise<{ status: string; timestamp: string; service: string }> => {
     const response = await api.get('/health');
+    return response.data;
+  },
+
+  // Contract validation and database reset
+  resetIfZero: async (userAddress: string): Promise<{ success: boolean; message: string; data: { contractShares: number; deletedTransactions?: number; action: string } }> => {
+    const response = await api.post(`/vault/reset-if-zero/${userAddress}`);
     return response.data;
   },
 };

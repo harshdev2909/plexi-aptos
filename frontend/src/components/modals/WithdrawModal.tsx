@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../ui/dialog';
 import { Button } from '../ui/button';
@@ -21,7 +21,8 @@ export function WithdrawModal({ open, onOpenChange, onTransactionComplete }: Wit
   const [step, setStep] = useState<'input' | 'confirm' | 'pending' | 'success' | 'error'>('input');
   const [txHash, setTxHash] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [userShares, setUserShares] = useState(1000); // Mock user shares for now
+  const [userShares, setUserShares] = useState(0);
+  const [sharesLoading, setSharesLoading] = useState(false);
 
   const { isConnected, signAndSubmitTransaction } = usePetraWallet();
   const { user } = useAuth();
@@ -30,12 +31,39 @@ export function WithdrawModal({ open, onOpenChange, onTransactionComplete }: Wit
   // Get user address from auth context
   const userAddress = user?.address;
 
+  // Fetch user shares from backend when modal opens
+  useEffect(() => {
+    if (open && userAddress) {
+      fetchUserShares();
+    }
+  }, [open, userAddress]);
+
+  const fetchUserShares = async () => {
+    setSharesLoading(true);
+    try {
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/vault/user/${userAddress}`);
+      if (response.ok) {
+        const data = await response.json();
+        const sharesValue = parseFloat(data.data.shares || '0');
+        setUserShares(sharesValue);
+      } else {
+        console.warn('Failed to fetch user shares from backend, status:', response.status);
+        setUserShares(0);
+      }
+    } catch (error) {
+      console.warn('Backend API unavailable, using 0 shares:', error);
+      setUserShares(0);
+    } finally {
+      setSharesLoading(false);
+    }
+  };
+
   const handleWithdraw = async () => {
-    const withdrawAmount = parseFloat(amount);
-    if (withdrawAmount <= 0 || withdrawAmount > userShares) {
+    const withdrawShares = parseFloat(amount);
+    if (withdrawShares <= 0 || withdrawShares > userShares) {
       toast({
         title: 'Invalid Amount',
-        description: 'Please enter a valid amount within your balance.',
+        description: 'Please enter a valid amount within your available shares.',
         variant: 'destructive',
       });
       return;
@@ -54,11 +82,14 @@ export function WithdrawModal({ open, onOpenChange, onTransactionComplete }: Wit
       setStep('pending');
       setIsLoading(true);
 
+      // Convert shares to APT (100 shares = 1 APT)
+      const aptAmount = withdrawShares / 100;
+
       // Create a transaction payload for the user to sign
       const transactionPayload = {
         type: 'entry_function_payload',
         function: `0x98dfcb742ea92c051230fbc1defac9b9c8d298670d544c0e1a23b9620b3a27e2::vault_v2::user_withdraw`,
-        arguments: [(withdrawAmount * 100000000).toString()], // Scale by 10^8 for APT decimals
+        arguments: [(aptAmount * 100000000).toString()], // Scale by 10^8 for APT decimals
         type_arguments: [],
       };
 
@@ -67,30 +98,38 @@ export function WithdrawModal({ open, onOpenChange, onTransactionComplete }: Wit
 
       if (result.hash) {
         setTxHash(result.hash);
+
+        // Call backend API to record the withdrawal and update user shares
+        try {
+          const response = await fetch(`${import.meta.env.VITE_API_URL}/vault/withdraw`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              walletAddress: userAddress,
+              shares: withdrawShares,
+              txHash: result.hash
+            }),
+          });
+
+          if (response.ok) {
+            const data = await response.json();
+            console.log('Backend withdrawal recorded:', data);
+          } else {
+            console.warn('Backend withdrawal recording failed, but transaction succeeded');
+          }
+        } catch (backendError) {
+          console.warn('Backend API unavailable, but transaction succeeded:', backendError);
+        }
+
         setStep('success');
 
         toast({
           title: 'Withdrawal Successful!',
-          description: `Withdrew ${withdrawAmount} APT. Transaction: ${result.hash}`,
+          description: `Withdrew ${withdrawShares} MST tokens (${aptAmount} APT). Transaction: ${result.hash}`,
           duration: 5000,
         });
-
-        // Store transaction in history
-        const transactionRecord = {
-          id: result.hash,
-          type: 'WITHDRAW',
-          amount: withdrawAmount,
-          shares: withdrawAmount,
-          status: 'COMPLETED',
-          timestamp: new Date().toISOString(),
-          txHash: result.hash,
-          userAddress,
-        };
-
-        // Store in localStorage for now (in production, this would be handled by the backend)
-        const existingTransactions = JSON.parse(localStorage.getItem('plexix_transactions') || '[]');
-        existingTransactions.unshift(transactionRecord);
-        localStorage.setItem('plexix_transactions', JSON.stringify(existingTransactions));
 
         onTransactionComplete?.();
       } else {
@@ -136,24 +175,25 @@ export function WithdrawModal({ open, onOpenChange, onTransactionComplete }: Wit
             className="space-y-6"
           >
             <div>
-              <Label htmlFor="amount">Withdraw Amount (Shares)</Label>
+              <Label htmlFor="amount">Withdraw Amount (MST tokens)</Label>
               <Input
                 id="amount"
                 type="number"
-                placeholder="0.00"
+                placeholder="0"
                 value={amount}
                 onChange={(e) => setAmount(e.target.value)}
                 className="plexi-input mt-2"
+                disabled={sharesLoading}
               />
               <p className="text-sm text-muted-foreground mt-2">
-                Available: {userShares} shares
+                {sharesLoading ? 'Loading...' : `Available: ${userShares.toLocaleString()} MST tokens`}
               </p>
             </div>
 
             <div className="p-4 bg-muted/20 rounded-xl">
               <h4 className="font-medium mb-2">You will receive:</h4>
-              <p className="text-lg font-semibold">~{amount || '0'} APT</p>
-              <p className="text-sm text-muted-foreground">Based on current share price</p>
+              <p className="text-lg font-semibold">~{amount ? (parseFloat(amount) / 100).toFixed(4) : '0.0000'} APT</p>
+              <p className="text-sm text-muted-foreground">100 MST tokens = 1 APT</p>
             </div>
 
             <Button
@@ -190,7 +230,7 @@ Withdraw APT
             <CheckCircle className="w-16 h-16 text-accent mx-auto mb-4" />
             <h3 className="text-lg font-semibold mb-2">Withdrawal Successful!</h3>
             <p className="text-muted-foreground mb-4">
-              Successfully withdrew {amount} APT
+              Successfully withdrew {amount} MST tokens ({amount ? (parseFloat(amount) / 100).toFixed(4) : '0'} APT)
             </p>
             <p className="text-sm text-muted-foreground mb-6">
               Transaction: {txHash}

@@ -86,12 +86,6 @@ export const authService = {
     localStorage.removeItem('plexix_wallet_address');
   },
 
-  // Check if user is authenticated
-  isAuthenticated: (): boolean => {
-    const token = localStorage.getItem('plexix_jwt');
-    return !!token;
-  },
-
   // Get stored wallet address
   getWalletAddress: (): string | null => {
     return localStorage.getItem('plexix_wallet_address');
@@ -103,7 +97,7 @@ export const authService = {
     localStorage.setItem('plexix_wallet_address', address);
   },
 
-  // Check if user is already authenticated
+  // Check if user is authenticated
   isAuthenticated: (): boolean => {
     const token = localStorage.getItem('plexix_jwt');
     const address = localStorage.getItem('plexix_wallet_address');

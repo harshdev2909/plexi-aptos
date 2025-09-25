@@ -60,11 +60,12 @@ export class VaultService {
         }
       });
 
-      const assets = Number(totalAssets || 0);
-      const shares = Number(totalShares || 0);
-      const sharePrice = shares > 0 ? assets / shares : 0;
+      // Convert from APT decimals (10^8) to human readable format
+      const assets = Number(totalAssets || 0) / 100000000; // Convert from 10^8 to APT
+      const shares = Number(totalShares || 0) / 100000000; // Convert from 10^8 to share units
+      const sharePrice = shares > 0 ? assets / shares : 1.0;
 
-      logger.info(`Real vault state from contract: ${assets} assets, ${shares} shares, ${sharePrice} price`);
+      logger.info(`Real vault state from contract: ${assets} APT assets, ${shares} shares, ${sharePrice} share price`);
 
       // If blockchain has no meaningful data, fall back to database calculation
       if (assets === 0 && shares === 0) {
@@ -125,8 +126,9 @@ export class VaultService {
         }
       });
 
-      const userShares = Number(shares || 0);
-      logger.info(`Real user shares from contract: ${userShares} for ${walletAddress}`);
+      // Convert from APT decimals (10^8) to human readable format
+      const userShares = Number(shares || 0) / 100000000; // Convert from 10^8 to share units
+      logger.info(`Real user shares from contract: ${userShares} shares for ${walletAddress}`);
       return userShares;
     } catch (error) {
       logger.info('User shares not found on blockchain, checking database');
