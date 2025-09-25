@@ -31,10 +31,8 @@ api.interceptors.response.use(
                            import.meta.env.VITE_STUB_MODE === 'true';
       
       if (!isDevelopment && window.location.pathname !== '/login') {
-        console.log('API: 401 error, redirecting to login');
         window.location.href = '/login';
       } else {
-        console.log('API: 401 error in development, not redirecting');
       }
     }
     return Promise.reject(error);
@@ -60,7 +58,6 @@ const cachedApiCall = async <T>(
   // Try to get from cache first
   const cachedData = apiCache.get<T>(cacheKey);
   if (cachedData) {
-    console.log(`API: Using cached data for ${endpoint}`);
     return cachedData;
   }
 
@@ -68,7 +65,6 @@ const cachedApiCall = async <T>(
     const data = await apiCall();
     // Cache the successful response
     apiCache.set(cacheKey, data, cacheConfig);
-    console.log(`API: Cached fresh data for ${endpoint}`);
     return data;
   } catch (error) {
     console.warn(`API: ${endpoint} failed, using ${mockDataFn ? 'mock data' : 'error'}:`, error);

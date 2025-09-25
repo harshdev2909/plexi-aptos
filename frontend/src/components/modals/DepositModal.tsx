@@ -2,13 +2,14 @@ import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../ui/dialog';
 import { Button } from '../ui/button';
-import { Input } from '../ui/input';
 import { Label } from '../ui/label';
-import { useToast } from '../../hooks/use-toast';
+import { Input } from '../ui/input';
+import { useAuth } from '@/contexts/AuthContext';
+import { usePetraWallet } from '@/hooks/usePetraWallet';
+import { useToast } from '@/hooks/use-toast';
+import { useQueryClient } from '@tanstack/react-query';
 import { LoadingSpinner } from '../ui/LoadingSpinner';
 import { CheckCircle, AlertCircle } from 'lucide-react';
-import { usePetraWallet } from '../../hooks/usePetraWallet';
-import { useAuth } from '../../contexts/AuthContext';
 
 interface DepositModalProps {
   open: boolean;
@@ -25,6 +26,7 @@ export function DepositModal({ open, onOpenChange, onTransactionComplete }: Depo
   const { isConnected, connect, balance, signAndSubmitTransaction } = usePetraWallet();
   const { user } = useAuth();
   const { toast } = useToast();
+  const queryClient = useQueryClient();
 
   // Get user address from auth context
   const userAddress = user?.address;
@@ -92,12 +94,22 @@ export function DepositModal({ open, onOpenChange, onTransactionComplete }: Depo
 
           if (response.ok) {
             const data = await response.json();
-            console.log('Backend deposit recorded:', data);
           } else {
-            console.warn('Backend deposit recording failed, but transaction succeeded');
           }
         } catch (backendError) {
-          console.warn('Backend API unavailable, but transaction succeeded:', backendError);
+        }
+
+        // Clear API cache and invalidate React Query cache to refresh data
+        try {
+          const { apiCache } = await import('../../utils/cache');
+          apiCache.clear();
+          
+          // Invalidate React Query cache
+          await queryClient.invalidateQueries({ queryKey: ['vaultState'] });
+          await queryClient.invalidateQueries({ queryKey: ['userPosition'] });
+          await queryClient.invalidateQueries({ queryKey: ['vaultEvents'] });
+          
+        } catch (cacheError) {
         }
 
         setStep('success');
@@ -208,9 +220,12 @@ export function DepositModal({ open, onOpenChange, onTransactionComplete }: Depo
             <p className="text-muted-foreground mb-4">
               Successfully deposited {amount} APT
             </p>
-            <p className="text-sm text-muted-foreground mb-6">
-              Transaction: {txHash}
-            </p>
+            <div className="text-sm text-muted-foreground mb-6">
+              <p className="mb-2">Transaction Hash:</p>
+              <p className="font-mono text-xs break-all bg-muted p-2 rounded">
+                {txHash}
+              </p>
+            </div>
             <Button onClick={handleClose} className="plexi-button-primary">
               Close
             </Button>

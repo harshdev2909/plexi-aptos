@@ -18,13 +18,15 @@ interface ActivityItem {
 interface RecentActivityProps {
   className?: string;
   vaultEvents?: any[];
+  truncateHashes?: boolean; // New prop to control hash truncation
+  showFullHistory?: boolean; // New prop to show more transactions
 }
 
-export function RecentActivity({ className, vaultEvents }: RecentActivityProps) {
+export function RecentActivity({ className, vaultEvents, truncateHashes = true, showFullHistory = false }: RecentActivityProps) {
   const [activities, setActivities] = useState<ActivityItem[]>([]);
   
-  // Use real API data
-  const { data: realVaultEvents, isLoading } = useVaultEvents(20);
+  // Use real API data - fetch more if showing full history
+  const { data: realVaultEvents, isLoading } = useVaultEvents(showFullHistory ? 100 : 20);
 
   // Transform vault events to activity items
   const transformEventsToActivities = (events: any[]): ActivityItem[] => {
@@ -45,9 +47,9 @@ export function RecentActivity({ className, vaultEvents }: RecentActivityProps) 
         shares: event.payload?.shares || '0',
         user: event.payload?.user || 'Unknown',
         timestamp: event.createdAt,
-        txHash: event.txHash || '0x0000...0000'
+        txHash: event.txHash || '0x0000000000000000000000000000000000000000000000000000000000000000' // Fallback for missing hash
       };
-    }).slice(0, 10); // Limit to 10 most recent
+    }).slice(0, showFullHistory ? 50 : 10); // Limit based on view type
   };
 
   useEffect(() => {
@@ -182,7 +184,9 @@ export function RecentActivity({ className, vaultEvents }: RecentActivityProps) 
                       </span>
                     </div>
                     <div className="flex items-center gap-2 text-xs text-gray-500">
-                      <span className="font-mono">{truncateHash(activity.txHash)}</span>
+                      <span className="font-mono">
+                        {truncateHashes ? truncateHash(activity.txHash) : activity.txHash}
+                      </span>
                       <span>•</span>
                       <span>{formatTimeAgo(activity.timestamp)}</span>
                     </div>
@@ -204,7 +208,7 @@ export function RecentActivity({ className, vaultEvents }: RecentActivityProps) 
           )}
         </div>
         
-        {activities.length > 0 && (
+        {activities.length > 0 && !showFullHistory && (
           <div className="mt-4 pt-4 border-t border-gray-200">
             <Button variant="outline" className="w-full border-gray-300 text-gray-700 hover:bg-gray-50">
               View All Activity

@@ -1,32 +1,53 @@
+/**
+ * @fileoverview TVL (Total Value Locked) Chart component for displaying vault growth over time.
+ * Shows historical TVL data with interactive charts and growth metrics.
+ */
+
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { TrendingUp, Activity } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { useVaultEvents, useVaultState } from '@/hooks/useVaultData';
 
+/**
+ * Represents a single data point in the TVL chart
+ */
 interface TVLDataPoint {
   timestamp: string;
   tvl: number;
   date: string;
 }
 
+/**
+ * Props for the TVLChart component
+ */
 interface TVLChartProps {
   className?: string;
   vaultEvents?: any[];
   totalAssets?: number;
 }
 
+/**
+ * TVL Chart component that displays vault growth over time
+ * @param {TVLChartProps} props - Component props
+ * @returns {JSX.Element} The rendered TVL chart
+ */
 export function TVLChart({ className, vaultEvents, totalAssets }: TVLChartProps) {
   const [tvlData, setTvlData] = useState<TVLDataPoint[]>([]);
   const [currentTVL, setCurrentTVL] = useState(0);
   
-  // Use real API data
+  // Fetch real API data for vault events and state
   const { data: realVaultEvents, isLoading: eventsLoading } = useVaultEvents(50);
   const { data: vaultState, isLoading: stateLoading } = useVaultState();
   
   const isLoading = eventsLoading || stateLoading;
 
-  // Calculate TVL history from real vault events
+  /**
+   * Calculate TVL history from vault events
+   * @param {any[]} events - Array of vault events
+   * @param {number} currentTotalAssets - Current total assets in vault
+   * @returns {TVLDataPoint[]} Array of TVL data points
+   */
   const calculateTVLHistory = (events: any[], currentTotalAssets: number) => {
     if (!events || events.length === 0) {
       // If no events, create a single data point with current TVL
@@ -108,12 +129,6 @@ export function TVLChart({ className, vaultEvents, totalAssets }: TVLChartProps)
         const latestTVL = calculatedTVLData[calculatedTVLData.length - 1]?.tvl || 0;
         setCurrentTVL(latestTVL);
         
-        console.log('TVL Chart Data:', {
-          currentAssets,
-          eventsCount: eventsToUse.length,
-          calculatedTVL: latestTVL,
-          dataPoints: calculatedTVLData.length
-        });
       } catch (error) {
         console.error('Error calculating TVL data:', error);
         // Fallback to basic data
@@ -128,7 +143,10 @@ export function TVLChart({ className, vaultEvents, totalAssets }: TVLChartProps)
     }
   }, [realVaultEvents, vaultState, vaultEvents, totalAssets, isLoading]);
 
-  // Calculate growth percentage
+  /**
+   * Calculate growth percentage between latest and previous data points
+   * @returns {number} Growth percentage
+   */
   const calculateGrowth = () => {
     if (tvlData.length < 2) return 0;
     const latest = tvlData[tvlData.length - 1].tvl;
@@ -139,7 +157,11 @@ export function TVLChart({ className, vaultEvents, totalAssets }: TVLChartProps)
   const growth = calculateGrowth();
   const isPositiveGrowth = growth >= 0;
 
-  // Custom tooltip for the chart
+  /**
+   * Custom tooltip component for the chart
+   * @param {any} props - Tooltip props from Recharts
+   * @returns {JSX.Element|null} Rendered tooltip or null
+   */
   const CustomTooltip = ({ active, payload, label }: any) => {
     if (active && payload && payload.length) {
       return (

@@ -27,21 +27,24 @@ export const sharesSchema = z.union([
   })
 ]);
 
+// Transaction hash validation
+export const txHashSchema = z.string()
+  .regex(/^0x[a-fA-F0-9]{64}$/, 'Invalid transaction hash format');
+
 // Deposit request validation
 export const depositRequestSchema = z.object({
   walletAddress: walletAddressSchema,
-  amount: amountSchema
+  amount: amountSchema,
+  txHash: txHashSchema.optional() // Optional for backward compatibility
 });
 
 // Withdraw request validation
 export const withdrawRequestSchema = z.object({
   walletAddress: walletAddressSchema,
-  shares: sharesSchema
+  shares: sharesSchema,
+  txHash: txHashSchema.optional() // Optional for backward compatibility
 });
 
-// Transaction hash validation
-export const txHashSchema = z.string()
-  .regex(/^0x[a-fA-F0-9]{64}$/, 'Invalid transaction hash format');
 
 // Pagination validation
 export const paginationSchema = z.object({

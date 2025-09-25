@@ -1,30 +1,50 @@
+/**
+ * @fileoverview Vault service for interacting with Aptos smart contracts.
+ * Handles vault state queries, user positions, and transaction management.
+ */
+
 import { Aptos, AptosConfig, Network, Ed25519PrivateKey, Ed25519PublicKey, Account } from '@aptos-labs/ts-sdk';
 import { logger } from '../utils/logger';
 
+/**
+ * Represents the current state of the vault
+ */
 export interface VaultState {
   totalAssets: number;
   totalShares: number;
   sharePrice: number;
 }
 
+/**
+ * Result of a deposit operation
+ */
 export interface DepositResult {
   txHash: string;
   sharesMinted: number;
   success: boolean;
 }
 
+/**
+ * Result of a withdrawal operation
+ */
 export interface WithdrawResult {
   txHash: string;
   amountWithdrawn: number;
   success: boolean;
 }
 
+/**
+ * Service class for vault operations on Aptos blockchain
+ */
 export class VaultService {
   private aptos: Aptos;
   private vaultModuleAddress: string;
   private vaultModuleName: string;
   private vaultAccount: Account | null = null;
 
+  /**
+   * Initialize the vault service with Aptos configuration
+   */
   constructor() {
     const config = new AptosConfig({
       network: Network.TESTNET,
@@ -40,6 +60,8 @@ export class VaultService {
 
   /**
    * Get the current vault state from the smart contract
+   * Falls back to database calculation if contract data is unavailable
+   * @returns {Promise<VaultState>} The current vault state
    */
   async getVaultState(): Promise<VaultState> {
     try {
@@ -114,6 +136,8 @@ export class VaultService {
 
   /**
    * Get user's shares from the smart contract
+   * @param {string} walletAddress - The user's wallet address
+   * @returns {Promise<number>} The user's share balance
    */
   async getUserShares(walletAddress: string): Promise<number> {
     try {
@@ -142,6 +166,10 @@ export class VaultService {
 
   /**
    * Record a deposit transaction (called after blockchain transaction is confirmed)
+   * @param {string} walletAddress - The user's wallet address
+   * @param {number} amount - The deposit amount
+   * @param {string} txHash - The transaction hash
+   * @returns {Promise<DepositResult>} The deposit result
    */
   async recordDeposit(walletAddress: string, amount: number, txHash: string): Promise<DepositResult> {
     try {
@@ -160,6 +188,10 @@ export class VaultService {
 
   /**
    * Record a withdrawal transaction (called after blockchain transaction is confirmed)
+   * @param {string} walletAddress - The user's wallet address
+   * @param {number} shares - The number of shares to withdraw
+   * @param {string} txHash - The transaction hash
+   * @returns {Promise<WithdrawResult>} The withdrawal result
    */
   async recordWithdraw(walletAddress: string, shares: number, txHash: string): Promise<WithdrawResult> {
     try {
@@ -177,7 +209,9 @@ export class VaultService {
   }
 
   /**
-   * Get transaction details from Aptos
+   * Get transaction details from Aptos blockchain
+   * @param {string} txHash - The transaction hash
+   * @returns {Promise<any>} The transaction details
    */
   async getTransactionDetails(txHash: string): Promise<any> {
     try {
@@ -192,7 +226,10 @@ export class VaultService {
   }
 
   /**
-   * Wait for transaction confirmation
+   * Wait for transaction confirmation on Aptos blockchain
+   * @param {string} txHash - The transaction hash to wait for
+   * @param {number} timeoutMs - Timeout in milliseconds (default: 30000)
+   * @returns {Promise<boolean>} True if transaction is confirmed, false if timeout
    */
   async waitForTransaction(txHash: string, timeoutMs: number = 30000): Promise<boolean> {
     const startTime = Date.now();
