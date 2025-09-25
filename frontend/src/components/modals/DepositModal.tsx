@@ -71,30 +71,42 @@ export function DepositModal({ open, onOpenChange, onTransactionComplete }: Depo
 
       if (result.hash) {
         setTxHash(result.hash);
+
+        // Calculate shares (1 APT = 100 shares as specified)
+        const sharesMinted = depositAmount * 100;
+
+        // Call backend API to record the deposit and update user shares
+        try {
+          const response = await fetch(`${import.meta.env.VITE_API_URL}/vault/deposit`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              walletAddress: userAddress,
+              amount: depositAmount,
+              txHash: result.hash,
+              shares: sharesMinted
+            }),
+          });
+
+          if (response.ok) {
+            const data = await response.json();
+            console.log('Backend deposit recorded:', data);
+          } else {
+            console.warn('Backend deposit recording failed, but transaction succeeded');
+          }
+        } catch (backendError) {
+          console.warn('Backend API unavailable, but transaction succeeded:', backendError);
+        }
+
         setStep('success');
 
         toast({
           title: 'Deposit Successful!',
-          description: `Deposited ${depositAmount} APT. Transaction: ${result.hash}`,
+          description: `Deposited ${depositAmount} APT, received ${sharesMinted} shares. Transaction: ${result.hash}`,
           duration: 5000,
         });
-
-        // Store transaction in history
-        const transactionRecord = {
-          id: result.hash,
-          type: 'DEPOSIT',
-          amount: depositAmount,
-          shares: depositAmount, // 1:1 ratio for now
-          status: 'COMPLETED',
-          timestamp: new Date().toISOString(),
-          txHash: result.hash,
-          userAddress,
-        };
-
-        // Store in localStorage for now (in production, this would be handled by the backend)
-        const existingTransactions = JSON.parse(localStorage.getItem('plexix_transactions') || '[]');
-        existingTransactions.unshift(transactionRecord);
-        localStorage.setItem('plexix_transactions', JSON.stringify(existingTransactions));
 
         onTransactionComplete?.();
       } else {
@@ -156,8 +168,8 @@ export function DepositModal({ open, onOpenChange, onTransactionComplete }: Depo
 
             <div className="p-4 bg-muted/20 rounded-xl">
               <h4 className="font-medium mb-2">You will receive:</h4>
-              <p className="text-lg font-semibold">{amount || '0'} Plexi Vault Shares</p>
-              <p className="text-sm text-muted-foreground">1:1 ratio with APT</p>
+              <p className="text-lg font-semibold">{amount ? (parseFloat(amount) * 100).toLocaleString() : '0'} MST tokens</p>
+              <p className="text-sm text-muted-foreground">1 APT = 100 MST tokens</p>
             </div>
 
             <Button

@@ -20,9 +20,13 @@ router.post('/deposit', validateBody(depositRequestSchema), asyncHandler(async (
   try {
     // For now, we'll simulate the deposit since the frontend handles the actual transaction
     const mockTxHash = `0x${Math.random().toString(16).substr(2, 64).padEnd(64, '0')}`;
+    
+    // Calculate shares: 1 APT = 100 shares (matching frontend calculation)
+    const sharesMinted = amount * 100;
+    
     const depositResult = {
       txHash: mockTxHash,
-      sharesMinted: amount,
+      sharesMinted: sharesMinted,
       success: true
     };
 
@@ -137,22 +141,25 @@ router.get('/user/:address', asyncHandler(async (req: Request, res: Response): P
   const { address } = req.params;
 
   try {
-    // Find user
-    const user = await User.findOne({ walletAddress: address });
-    if (!user) {
-      res.status(404).json({
-        success: false,
-        error: {
-          message: 'User not found',
-          statusCode: 404
-        }
-      });
-      return;
-    }
+    // Calculate user shares from transactions instead of User model
+    const deposits = await Transaction.find({
+      walletAddress: address,
+      type: 'deposit',
+      status: 'completed'
+    });
+    const withdrawals = await Transaction.find({
+      walletAddress: address,
+      type: 'withdraw',
+      status: 'completed'
+    });
+
+    const totalDepositsShares = deposits.reduce((sum, tx) => sum + tx.shares, 0);
+    const totalWithdrawalsShares = withdrawals.reduce((sum, tx) => sum + tx.shares, 0);
+    const userShares = Math.max(totalDepositsShares - totalWithdrawalsShares, 0);
 
     // Get vault state to calculate assets equivalent
     const vaultState = await vaultService.getVaultState();
-    const assetsEquivalent = user.shares * vaultState.sharePrice;
+    const assetsEquivalent = userShares * vaultState.sharePrice;
 
     // Get user's transaction history
     const transactions = await Transaction.find({ walletAddress: address })
@@ -163,8 +170,8 @@ router.get('/user/:address', asyncHandler(async (req: Request, res: Response): P
     res.status(200).json({
       success: true,
       data: {
-        walletAddress: user.walletAddress,
-        shares: user.shares,
+        walletAddress: address,
+        shares: userShares,
         assetsEquivalent,
         sharePrice: vaultState.sharePrice,
         txHistory: transactions
@@ -261,6 +268,97 @@ router.get('/transactions/:txHash', asyncHandler(async (req: Request, res: Respo
     });
   } catch (error) {
     logger.error('Get transaction error:', error);
+    throw error;
+  }
+}));
+
+/**
+ * GET /vault/events
+ * Get vault events (for dashboard data fetching)
+ */
+router.get('/events', asyncHandler(async (req: Request, res: Response) => {
+  const { limit = '50' } = req.query;
+  const limitNum = Math.min(parseInt(limit as string) || 50, 100);
+
+  try {
+    // Get recent transactions as "events"
+    const transactions = await Transaction.find({})
+      .sort({ createdAt: -1 })
+      .limit(limitNum)
+      .select('-__v');
+
+    // Transform transactions to event format expected by frontend
+    const events = transactions.map(tx => ({
+      id: (tx._id as any).toString(),
+      eventType: tx.type === 'deposit' ? 'DepositEvent' : 'WithdrawEvent',
+      txHash: tx.txHash,
+      payload: {
+        amount: tx.amount.toString(),
+        user: tx.walletAddress,
+        shares: tx.shares?.toString() || '0'
+      },
+      createdAt: tx.createdAt.toISOString()
+    }));
+
+    res.status(200).json({
+      success: true,
+      data: events
+    });
+  } catch (error) {
+    logger.error('Get vault events error:', error);
+    throw error;
+  }
+}));
+
+
+/**
+ * POST /vault/reset-if-zero/:address
+ * Check contract vault value for user address and reset database if zero
+ */
+router.post('/reset-if-zero/:address', asyncHandler(async (req: Request, res: Response) => {
+  const { address } = req.params;
+
+  try {
+    // First, check the contract vault value for this address
+    const userShares = await vaultService.getUserShares(address);
+
+    logger.info(`Contract check for ${address}: ${userShares} shares`);
+
+    // If shares are effectively zero (less than 0.001), reset the database
+    if (userShares < 0.001) {
+      logger.info(`User ${address} has effectively zero shares (${userShares}), resetting database...`);
+
+      // Delete all transactions for this user
+      const deletedTransactions = await Transaction.deleteMany({ walletAddress: address });
+
+      // Delete or reset the user record
+      await User.findOneAndDelete({ walletAddress: address });
+
+      logger.info(`Reset complete for ${address}: deleted ${deletedTransactions.deletedCount} transactions and user record`);
+
+      res.status(200).json({
+        success: true,
+        message: `Database reset completed for ${address}`,
+        data: {
+          contractShares: userShares,
+          deletedTransactions: deletedTransactions.deletedCount,
+          action: 'reset'
+        }
+      });
+    } else {
+      logger.info(`User ${address} has ${userShares} shares, no reset needed`);
+
+      res.status(200).json({
+        success: true,
+        message: `No reset needed for ${address}`,
+        data: {
+          contractShares: userShares,
+          action: 'no_reset'
+        }
+      });
+    }
+  } catch (error) {
+    logger.error('Reset-if-zero error:', error);
     throw error;
   }
 }));

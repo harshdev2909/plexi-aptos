@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { apiCache, CACHE_CONFIGS, createCacheKey } from '../utils/cache';
 
 const API_BASE_URL = 'http://localhost:3001/api/v1';
 
@@ -42,47 +43,66 @@ api.interceptors.response.use(
 
 // Helper function to check if we're in stub mode
 const isStubMode = () => {
-  return import.meta.env.VITE_STUB_MODE === 'true' || 
+  return import.meta.env.VITE_STUB_MODE === 'true' ||
          import.meta.env.NODE_ENV === 'development';
+};
+
+// Cached API call wrapper
+const cachedApiCall = async <T>(
+  endpoint: string,
+  cacheConfig: { ttl: number },
+  apiCall: () => Promise<T>,
+  mockDataFn?: () => T,
+  params?: Record<string, any>
+): Promise<T> => {
+  const cacheKey = createCacheKey(endpoint, params);
+
+  // Try to get from cache first
+  const cachedData = apiCache.get<T>(cacheKey);
+  if (cachedData) {
+    console.log(`API: Using cached data for ${endpoint}`);
+    return cachedData;
+  }
+
+  try {
+    const data = await apiCall();
+    // Cache the successful response
+    apiCache.set(cacheKey, data, cacheConfig);
+    console.log(`API: Cached fresh data for ${endpoint}`);
+    return data;
+  } catch (error) {
+    console.warn(`API: ${endpoint} failed, using ${mockDataFn ? 'mock data' : 'error'}:`, error);
+    if (mockDataFn && isStubMode()) {
+      return mockDataFn();
+    }
+    throw error;
+  }
 };
 
 // Helper function to get mock vault state
 const getMockVaultState = (): VaultState => ({
-  totalAssets: '1000000.00',
-  totalShares: '1000000',
-  assetToken: 'USDC',
+  totalAssets: '0.00', // Default to 0 when server unavailable
+  totalShares: '0.00',
+  assetToken: 'APT', // Vault assets are in APT (Aptos native token)
   isInitialized: true,
   strategiesCount: 3,
-  rewardTokens: ['APT', 'USDC'],
+  rewardTokens: ['APT'],
   lastRebalanceTimestamp: Date.now() - 3600000, // 1 hour ago
 });
 
 // Helper function to get mock user position
 const getMockUserPosition = (address: string): UserPosition => ({
-  userShares: '1000.00',
-  assetsEquivalent: '1000.00',
+  shares: '0.00', // Default to 0 when server unavailable
+  assetsEquivalent: '0.00', // Default to 0 when server unavailable
   pendingRewards: {
-    'APT': '5.25',
-    'USDC': '10.50'
+    'APT': '0.00'
   }
 });
 
 // Helper function to get mock vault events
 const getMockVaultEvents = (limit: number): VaultEvent[] => {
-  const events: VaultEvent[] = [];
-  for (let i = 0; i < limit; i++) {
-    events.push({
-      id: `event-${i}`,
-      eventType: i % 2 === 0 ? 'DepositEvent' : 'WithdrawEvent',
-      txHash: `0x${Math.random().toString(16).substr(2, 64)}`,
-      payload: {
-        amount: (Math.random() * 1000).toFixed(2),
-        user: '0x98dfcb742ea92c051230fbc1defac9b9c8d298670d544c0e1a23b9620b3a27e2'
-      },
-      createdAt: new Date(Date.now() - i * 60000).toISOString()
-    });
-  }
-  return events;
+  // Return empty array when server unavailable to show "No recent activity"
+  return [];
 };
 
 // Types
@@ -97,7 +117,7 @@ export interface VaultState {
 }
 
 export interface UserPosition {
-  userShares: string;
+  shares: string;
   assetsEquivalent: string;
   pendingRewards: Record<string, string>;
 }
@@ -158,118 +178,117 @@ export interface Orderbook {
 export const apiService = {
   // Vault endpoints
   getVaultState: async (): Promise<VaultState> => {
-    try {
-      const response = await api.get('/vault/state');
-      return response.data.data || response.data;
-    } catch (error) {
-      console.warn('API: getVaultState failed, using mock data:', error);
-      if (isStubMode()) {
-        return getMockVaultState();
-      }
-      throw error;
-    }
+    return cachedApiCall(
+      'getVaultState',
+      CACHE_CONFIGS.VAULT_STATE,
+      async () => {
+        const response = await api.get('/vault/state');
+        return response.data.data || response.data;
+      },
+      getMockVaultState
+    );
   },
 
   getUserPosition: async (address: string): Promise<UserPosition> => {
-    try {
-      const response = await api.get(`/vault/user/${address}`);
-      return response.data.data || response.data;
-    } catch (error) {
-      console.warn('API: getUserPosition failed, using mock data:', error);
-      if (isStubMode()) {
-        return getMockUserPosition(address);
-      }
-      throw error;
-    }
+    return cachedApiCall(
+      'getUserPosition',
+      CACHE_CONFIGS.USER_POSITION,
+      async () => {
+        const response = await api.get(`/vault/user/${address}`);
+        return response.data.data || response.data;
+      },
+      () => getMockUserPosition(address),
+      { address }
+    );
   },
 
   getVaultEvents: async (limit: number = 50): Promise<VaultEvent[]> => {
-    try {
-      const response = await api.get(`/vault/events?limit=${limit}`);
-      return response.data.data || response.data;
-    } catch (error) {
-      console.warn('API: getVaultEvents failed, using mock data:', error);
-      if (isStubMode()) {
-        return getMockVaultEvents(limit);
-      }
-      throw error;
-    }
+    return cachedApiCall(
+      'getVaultEvents',
+      CACHE_CONFIGS.EVENTS,
+      async () => {
+        const response = await api.get(`/vault/events?limit=${limit}`);
+        return response.data.data || response.data;
+      },
+      () => getMockVaultEvents(limit),
+      { limit }
+    );
   },
 
   // Trading endpoints
   getMarketData: async (symbol?: string): Promise<MarketData | MarketData[]> => {
-    try {
-      const url = symbol ? `/hyperliquid/market/${symbol}` : '/hyperliquid/market';
-      const response = await api.get(url);
-      return response.data.data || response.data;
-    } catch (error) {
-      console.warn('API: getMarketData failed, using mock data:', error);
-      if (isStubMode()) {
-        return {
-          symbol: symbol || 'BTC-USD',
-          price: '45000.00',
-          markPrice: '45000.00',
-          fundingRate: '0.0001',
-          volume24h: '1000000.00',
-          change24h: '2.5'
-        };
-      }
-      throw error;
-    }
+    return cachedApiCall(
+      'getMarketData',
+      CACHE_CONFIGS.MARKET_DATA,
+      async () => {
+        const url = symbol ? `/hyperliquid/market/${symbol}` : '/hyperliquid/market';
+        const response = await api.get(url);
+        return response.data.data || response.data;
+      },
+      () => ({
+        symbol: symbol || 'BTC-USD',
+        price: '45000.00',
+        markPrice: '45000.00',
+        fundingRate: '0.0001',
+        volume24h: '1000000.00',
+        change24h: '2.5'
+      }),
+      symbol ? { symbol } : undefined
+    );
   },
 
   getOrderbook: async (symbol: string): Promise<Orderbook> => {
-    try {
-      const response = await api.get(`/clob/orderbook/${symbol}`);
-      return response.data.data || response.data;
-    } catch (error) {
-      console.warn('API: getOrderbook failed, using mock data:', error);
-      if (isStubMode()) {
-        return {
-          symbol,
-          bids: [
-            { price: '44990.00', size: '10.5' },
-            { price: '44980.00', size: '5.2' },
-            { price: '44970.00', size: '8.1' }
-          ],
-          asks: [
-            { price: '45010.00', size: '12.3' },
-            { price: '45020.00', size: '7.8' },
-            { price: '45030.00', size: '9.4' }
-          ],
-          timestamp: Date.now()
-        };
-      }
-      throw error;
-    }
+    return cachedApiCall(
+      'getOrderbook',
+      CACHE_CONFIGS.ORDERBOOK,
+      async () => {
+        const response = await api.get(`/clob/orderbook/${symbol}`);
+        return response.data.data || response.data;
+      },
+      () => ({
+        symbol,
+        bids: [
+          { price: '44990.00', size: '10.5' },
+          { price: '44980.00', size: '5.2' },
+          { price: '44970.00', size: '8.1' }
+        ],
+        asks: [
+          { price: '45010.00', size: '12.3' },
+          { price: '45020.00', size: '7.8' },
+          { price: '45030.00', size: '9.4' }
+        ],
+        timestamp: Date.now()
+      }),
+      { symbol }
+    );
   },
 
   getPositions: async (userAddress?: string): Promise<any[]> => {
-    try {
-      const url = userAddress ? `/hyperliquid/positions/${userAddress}` : '/hyperliquid/positions';
-      const response = await api.get(url);
-      return response.data.data || response.data;
-    } catch (error) {
-      console.warn('API: getPositions failed, using mock data:', error);
-      if (isStubMode()) {
-        return [];
-      }
-      throw error;
-    }
+    return cachedApiCall(
+      'getPositions',
+      CACHE_CONFIGS.POSITIONS,
+      async () => {
+        const url = userAddress ? `/hyperliquid/positions/${userAddress}` : '/hyperliquid/positions';
+        const response = await api.get(url);
+        return response.data.data || response.data;
+      },
+      () => [],
+      userAddress ? { userAddress } : undefined
+    );
   },
 
   getTrades: async (userAddress?: string): Promise<Trade[]> => {
-    try {
-      const url = userAddress ? `/trades?userAddress=${userAddress}` : '/trades';
-      const response = await api.get(url);
-      return response.data.data || response.data;
-    } catch (error) {
-      console.warn('API: getTrades failed, using mock data:', error);
-      if (isStubMode()) {
-        return [];
-      }
-      throw error;
-    }
+    return cachedApiCall(
+      'getTrades',
+      CACHE_CONFIGS.TRADES,
+      async () => {
+        const url = userAddress ? `/trades?userAddress=${userAddress}` : '/trades';
+        const response = await api.get(url);
+        return response.data.data || response.data;
+      },
+      () => [],
+      userAddress ? { userAddress } : undefined
+    );
   },
 
   // Vault transaction endpoints
@@ -364,13 +383,30 @@ export const apiService = {
   },
 
   getUserTransactions: async (userAddress: string) => {
-    const response = await api.get(`/tx/user/${userAddress}`);
-    return response.data;
+    try {
+      // Use the vault/user endpoint which includes transaction history
+      const response = await api.get(`/vault/user/${userAddress}`);
+      return {
+        data: response.data.data?.txHistory || []
+      };
+    } catch (error) {
+      console.warn('Failed to fetch user transactions from backend:', error);
+      // Return empty data if backend is unavailable
+      return {
+        data: []
+      };
+    }
   },
 
   // Health check
   health: async (): Promise<{ status: string; timestamp: string; service: string }> => {
     const response = await api.get('/health');
+    return response.data;
+  },
+
+  // Contract validation and database reset
+  resetIfZero: async (userAddress: string): Promise<{ success: boolean; message: string; data: { contractShares: number; deletedTransactions?: number; action: string } }> => {
+    const response = await api.post(`/vault/reset-if-zero/${userAddress}`);
     return response.data;
   },
 };

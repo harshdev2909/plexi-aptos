@@ -1,10 +1,19 @@
 import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
-import { useWalletStore } from '@/store/useWalletStore';
-import { Wallet, LogOut } from 'lucide-react';
+import { usePetraWallet } from '@/hooks/usePetraWallet';
+import { Wallet, LogOut, ChevronDown } from 'lucide-react';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 
 export function Header() {
-  const { isConnected, address, isLoading, connect, disconnect } = useWalletStore();
+  const {
+    isConnected,
+    address,
+    balance,
+    isLoading: isConnecting,
+    isAuthenticated,
+    connect,
+    disconnect
+  } = usePetraWallet();
 
   return (
     <motion.header
@@ -59,28 +68,66 @@ export function Header() {
           {isConnected ? (
             <div className="flex items-center space-x-3">
               <div className="text-sm">
-                <p className="text-foreground font-medium">{address}</p>
-                <p className="text-muted-foreground">1,000 USDC</p>
+                <p className="text-foreground font-medium">
+                  {address ? `${address.slice(0, 6)}...${address.slice(-4)}` : 'Connected'}
+                </p>
+                <p className="text-muted-foreground">
+                  {balance.toFixed(4)} APT
+                  {isAuthenticated && <span className="ml-2 text-green-600">✓</span>}
+                </p>
               </div>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={disconnect}
-                className="border-destructive/20 text-destructive hover:bg-destructive/10"
-              >
-                <LogOut className="w-4 h-4 mr-2" />
-                Disconnect
-              </Button>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="sm">
+                    <Wallet className="w-4 h-4 mr-2" />
+                    {wallet?.name || 'Wallet'}
+                    <ChevronDown className="w-4 h-4 ml-2" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem
+                    onClick={() => navigator.clipboard.writeText(address || '')}
+                    disabled={!address}
+                  >
+                    Copy Address
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={() => window.open(`https://explorer.aptoslabs.com/account/${address}?network=testnet`, '_blank')}
+                    disabled={!address}
+                  >
+                    View on Explorer
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={disconnect}
+                    className="text-destructive focus:text-destructive"
+                  >
+                    <LogOut className="w-4 h-4 mr-2" />
+                    Disconnect
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
           ) : (
-            <Button
-              onClick={connect}
-              disabled={isLoading}
-              className="plexi-button-primary"
-            >
-              <Wallet className="w-4 h-4 mr-2" />
-              {isLoading ? 'Connecting...' : 'Connect Wallet'}
-            </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  disabled={isConnecting}
+                  className="plexi-button-primary"
+                >
+                  <Wallet className="w-4 h-4 mr-2" />
+                  {isConnecting ? 'Connecting...' : 'Connect Wallet'}
+                  <ChevronDown className="w-4 h-4 ml-2" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                {wallets?.map((w: any) => (
+                  <DropdownMenuItem key={w.name} onClick={() => connect(w.name)}>
+                    <Wallet className="w-4 h-4 mr-2" />
+                    {w.name}
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
           )}
         </div>
       </div>

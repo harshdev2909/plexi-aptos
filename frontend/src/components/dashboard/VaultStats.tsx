@@ -2,9 +2,9 @@ import { motion } from 'framer-motion';
 import { StatCard } from '@/components/ui/StatCard';
 import { useVaultStore } from '@/store/useVaultStore';
 import { useAuth } from '@/contexts/AuthContext';
+import { formatCurrency, formatAptAmount } from '@/utils/formatters';
 import { TrendingUp, DollarSign, PieChart, BarChart3, Gift, Coins } from 'lucide-react';
 import { useEffect } from 'react';
-import { priceService } from '@/services/priceService';
 
 export function VaultStats() {
   const { stats, updateStats, setUserAddress } = useVaultStore();
@@ -18,21 +18,6 @@ export function VaultStats() {
     }
   }, [user?.address, setUserAddress, updateStats]);
 
-  const formatCurrency = (value: number) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD',
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0,
-    }).format(value);
-  };
-
-  const formatAptAmount = (value: number) => {
-    return new Intl.NumberFormat('en-US', {
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 6,
-    }).format(value);
-  };
 
   const getAptValue = (aptAmount: number) => {
     if (stats.aptPrice) {
