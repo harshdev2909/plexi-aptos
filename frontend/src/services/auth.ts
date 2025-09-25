@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:4000/api/v1';
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api/v1';
 
 const authApi = axios.create({
   baseURL: API_BASE_URL,
@@ -130,15 +130,20 @@ export const authService = {
         };
       }
 
+      console.log('Production mode: requesting nonce for address:', address);
+      
       // Request nonce
       const nonceResponse = await authService.requestNonce(address);
       if (!nonceResponse.success || !nonceResponse.nonce) {
+        console.error('Failed to get nonce:', nonceResponse.error);
         return {
           success: false,
           error: nonceResponse.error || 'Failed to get nonce',
         };
       }
 
+      console.log('Nonce received, generating mock signature');
+      
       // For now, we'll use a mock signature since we're in development
       // In production, you would get the actual signature from the wallet
       const mockSignature = '0x' + Math.random().toString(16).substr(2, 128);
@@ -147,6 +152,9 @@ export const authService = {
       const authResponse = await authService.verifySignature(address, mockSignature);
       if (authResponse.success && authResponse.token) {
         authService.storeAuthData(authResponse.token, address);
+        console.log('Authentication successful, token stored');
+      } else {
+        console.error('Signature verification failed:', authResponse.error);
       }
       
       return authResponse;

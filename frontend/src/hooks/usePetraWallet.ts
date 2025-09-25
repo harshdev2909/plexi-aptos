@@ -217,7 +217,6 @@ export const usePetraWallet = () => {
       setIsAuthenticated(false);
       authService.logout();
       
-      console.log('Disconnected from Petra wallet');
     } catch (error) {
       console.error('Petra disconnection failed:', error);
     }
@@ -253,15 +252,8 @@ export const usePetraWallet = () => {
     }
 
     try {
-      console.log('Attempting to sign transaction with wallet:', {
-        wallet: !!wallet,
-        address,
-        transactionType: typeof transaction,
-        transactionKeys: transaction ? Object.keys(transaction) : 'null'
-      });
       
       const response = await wallet.signAndSubmitTransaction(transaction);
-      console.log('Transaction signed successfully:', response);
       return response;
     } catch (error: any) {
       console.error('Transaction failed:', error);
@@ -280,16 +272,12 @@ export const usePetraWallet = () => {
     }
 
     try {
-      console.log('Starting authentication for address:', address);
       const authResult = await authService.authenticate(address);
-      console.log('Authentication result:', authResult);
       
       if (authResult.success) {
         setIsAuthenticated(true);
-        console.log('Authentication successful, isAuthenticated set to true');
       } else {
         setIsAuthenticated(false);
-        console.log('Authentication failed:', authResult.error);
       }
       
       return authResult.success;

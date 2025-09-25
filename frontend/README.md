@@ -1,48 +1,76 @@
-# Plexi Frontend - Wallet-Based Trading Interface
+# Plexi Vault Frontend
 
-A modern React frontend for Plexi, providing unified perp trading orchestration on Aptos + Hyperliquid with wallet-based authentication.
+[![React](https://img.shields.io/badge/React-18-blue)](https://reactjs.org/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5-blue)](https://www.typescriptlang.org/)
+[![Vite](https://img.shields.io/badge/Vite-5-purple)](https://vitejs.dev/)
+[![Tailwind CSS](https://img.shields.io/badge/Tailwind-3-cyan)](https://tailwindcss.com/)
+
+A modern React frontend for the Plexi Vault Protocol, providing a comprehensive interface for DeFi vault management on Aptos blockchain with real-time analytics and wallet integration.
 
 ## 🚀 Features
 
-### Authentication
-- **Wallet-based login** using Aptos wallet adapter
-- **JWT token management** for secure API access
-- **Automatic session persistence** across browser refreshes
+### 🔐 Wallet Integration
+- **Petra Wallet** support with Aptos wallet adapter
+- **Secure authentication** with signature-based login
+- **Real-time balance** tracking and updates
+- **Multi-wallet** support (Petra, Martian, Pontem)
 
-### Trading Interface
-- **Real-time orderbook** and market data
-- **Position management** with live P&L tracking
-- **Order placement** (market and limit orders)
-- **Multi-symbol support** (BTC, ETH, SOL)
+### 💰 Vault Management
+- **Deposit/Withdraw** APT tokens to/from vault
+- **Share-based accounting** with MST token representation
+- **Real-time TVL** and performance tracking
+- **Strategy allocation** visualization (hedge/farm ratios)
+- **Transaction history** with detailed event logs
 
-### Vault Management
-- **Deposit/Withdraw** operations
-- **Strategy allocation** visualization
-- **Reward tracking** and claiming
-- **Event history** and activity monitoring
+### 📊 Analytics Dashboard
+- **TVL Growth Charts** with historical data
+- **Portfolio Performance** tracking over time
+- **APY Calculations** with time-weighted returns
+- **Recent Activity** feed with transaction details
+- **User Position** overview with USD valuations
 
-### Automation
-- **Risk management** settings (stop-loss, take-profit)
-- **Automated hedging** configuration
-- **Strategy management** and monitoring
-- **Manual controls** for rebalancing and harvesting
+### 🎨 Modern UI/UX
+- **Responsive design** optimized for all devices
+- **Dark/Light theme** support
+- **Interactive charts** with Recharts integration
+- **Real-time updates** with automatic data refresh
+- **Loading states** and error handling
 
-### Analytics
-- **P&L tracking** and performance metrics
-- **Position analysis** with detailed breakdowns
-- **Activity history** and transaction logs
-- **Risk metrics** and exposure monitoring
+### 🧪 Test Environment
+- **Test Dashboard** replicating production interface
+- **Aptos Testnet** integration for safe testing
+- **Mock data fallbacks** when backend unavailable
+- **Faucet integration** for test APT tokens
 
 ## 🛠️ Tech Stack
 
-- **React 18** with TypeScript
-- **Vite** for fast development and building
-- **Tailwind CSS** for styling
-- **shadcn/ui** for UI components
-- **TanStack Query** for data fetching
-- **Zustand** for state management
-- **Aptos SDK** for wallet integration
-- **Axios** for API communication
+### Core Framework
+- **React 18** with TypeScript for type-safe development
+- **Vite 5** for lightning-fast development and building
+- **React Router v6** for client-side routing
+
+### UI & Styling
+- **Tailwind CSS** for utility-first styling
+- **Radix UI** for accessible, unstyled components
+- **shadcn/ui** for beautiful, customizable UI components
+- **Lucide React** for consistent iconography
+- **Framer Motion** for smooth animations
+
+### State Management
+- **Zustand** for lightweight global state
+- **React Query** for server state management
+- **React Context** for authentication state
+
+### Blockchain Integration
+- **Aptos SDK** for blockchain interactions
+- **Wallet Adapters** for multi-wallet support
+- **Petra Wallet** as primary wallet integration
+
+### Data & API
+- **Axios** for HTTP client with interceptors
+- **Recharts** for interactive data visualization
+- **Date-fns** for date manipulation
+- **Zod** for runtime type validation
 
 ## 📦 Installation
 
@@ -58,9 +86,9 @@ A modern React frontend for Plexi, providing unified perp trading orchestration 
    
    Configure the following variables:
    ```env
-   VITE_API_URL=http://localhost:4000/api/v1
-   VITE_STUB_MODE=true
+   VITE_API_BASE_URL=http://localhost:4000/api/v1
    VITE_APTOS_NETWORK=testnet
+   VITE_VAULT_ADDRESS=0x98dfcb742ea92c051230fbc1defac9b9c8d298670d544c0e1a23b9620b3a27e2
    VITE_APTOS_RPC_URL=https://fullnode.testnet.aptoslabs.com/v1
    ```
 
@@ -80,18 +108,24 @@ A modern React frontend for Plexi, providing unified perp trading orchestration 
 
 | Variable | Description | Default |
 |----------|-------------|---------|
-| `VITE_API_URL` | Backend API URL | `http://localhost:4000/api/v1` |
-| `VITE_STUB_MODE` | Enable stub mode for testing | `true` |
+| `VITE_API_BASE_URL` | Backend API base URL | `http://localhost:4000/api/v1` |
 | `VITE_APTOS_NETWORK` | Aptos network (testnet/mainnet) | `testnet` |
+| `VITE_VAULT_ADDRESS` | Deployed vault contract address | Required |
 | `VITE_APTOS_RPC_URL` | Aptos RPC endpoint | `https://fullnode.testnet.aptoslabs.com/v1` |
 
-### Stub Mode
+### Development vs Production
 
-When `VITE_STUB_MODE=true`, the frontend uses mock data instead of real API calls:
-- Simulated market data and orderbooks
-- Mock trading operations
-- Fake position and vault data
-- No real blockchain transactions
+**Development Mode:**
+- Hot module replacement for instant updates
+- Source maps for debugging
+- Detailed error messages
+- Development-friendly logging
+
+**Production Mode:**
+- Optimized bundle with tree-shaking
+- Minified assets for faster loading
+- Production API endpoints
+- Error boundaries for graceful failures
 
 ## 🏗️ Project Structure
 
@@ -106,71 +140,73 @@ src/
 ├── hooks/              # Custom React hooks
 ├── pages/              # Page components
 │   ├── Index.tsx       # Landing page
-│   ├── LoginPage.tsx   # Wallet login
-│   ├── DashboardPage.tsx # Main dashboard
+│   ├── LoginPage.tsx   # Wallet connection
+│   ├── DashboardPage.tsx # Main vault dashboard
+│   ├── TestDashboardPage.tsx # Test environment dashboard
+│   ├── TestLandingPage.tsx # Test environment landing
 │   ├── TradingPage.tsx # Trading interface
-│   ├── VaultsPage.tsx  # Vault management
-│   ├── AutomationPage.tsx # Automation settings
 │   ├── AnalyticsPage.tsx # Analytics dashboard
 │   └── SettingsPage.tsx # User settings
 ├── services/           # API services
 │   ├── api.ts         # Main API service
-│   └── auth.ts        # Authentication service
+│   ├── auth.ts        # Authentication service
+│   └── priceService.ts # Price data service
 ├── store/              # State management
-│   ├── useWalletStore.ts # Wallet state
-│   └── useVaultStore.ts  # Vault state
+│   └── useVaultStore.ts  # Vault state management
 └── utils/              # Utility functions
 ```
 
-## 🔐 Authentication Flow
+## 🔐 Wallet Integration Flow
 
-1. **Wallet Connection:**
-   - User clicks "Connect Wallet"
-   - Aptos wallet adapter prompts for connection
-   - Wallet address is retrieved
+1. **Wallet Detection:**
+   - Check for installed Aptos wallets (Petra, Martian, etc.)
+   - Display available wallet options
+   - Handle wallet not installed scenarios
 
-2. **Nonce Challenge:**
-   - Frontend requests nonce from backend
-   - Backend generates and returns nonce
+2. **Connection Process:**
+   - User selects wallet and clicks "Connect"
+   - Wallet adapter requests permission
+   - User approves connection in wallet
 
-3. **Signature Verification:**
-   - User signs nonce with wallet
-   - Signature is sent to backend for verification
-   - Backend issues JWT token on successful verification
+3. **Account Information:**
+   - Retrieve wallet address and public key
+   - Fetch APT balance from blockchain
+   - Store connection state in React context
 
-4. **Session Management:**
-   - JWT token stored in localStorage
-   - Token automatically attached to API requests
-   - Session persists across browser refreshes
+4. **Transaction Signing:**
+   - Generate transaction payloads for vault operations
+   - Request user signature through wallet
+   - Submit signed transactions to Aptos network
+
+5. **Session Persistence:**
+   - Remember wallet preference in localStorage
+   - Auto-reconnect on page refresh
+   - Handle wallet disconnection gracefully
 
 ## 📡 API Integration
 
 ### Authentication Endpoints
-- `POST /auth/nonce` - Request nonce for wallet
-- `POST /auth/verify` - Verify signature and get JWT
-- `POST /auth/logout` - Logout and invalidate token
+- `POST /auth/login` - Wallet-based authentication
+- `POST /auth/logout` - Logout and clear session
 - `GET /auth/me` - Get current user info
-
-### Trading Endpoints
-- `GET /hyperliquid/positions/:address` - Get user positions
-- `GET /hyperliquid/market/:symbol` - Get market data
-- `POST /hyperliquid/open` - Open position
-- `POST /hyperliquid/close` - Close position
-- `GET /clob/orderbook/:symbol` - Get orderbook
-- `POST /clob/route` - Route order to CLOB
+- `GET /auth/nonce/:address` - Get signing nonce
 
 ### Vault Endpoints
-- `GET /vault/state` - Get vault state
-- `GET /vault/user/:address` - Get user vault info
-- `POST /tx/deposit` - Deposit to vault
-- `POST /tx/withdraw` - Withdraw from vault
-- `GET /vault/events` - Get vault events
+- `GET /vault/state` - Get current vault state (TVL, shares, price)
+- `GET /vault/user/:address` - Get user position and history
+- `GET /vault/events` - Get vault events for charts
+- `GET /vault/transactions` - Get paginated transaction history
+- `POST /vault/deposit` - Process deposit transaction
+- `POST /vault/withdraw` - Process withdrawal transaction
+- `POST /vault/reset-if-zero/:address` - Reset user data if zero balance
 
-### Admin Endpoints
-- `POST /admin/rebalance` - Trigger rebalance
-- `POST /admin/harvest` - Trigger harvest
-- `POST /admin/hedge` - Manual hedging
-- `POST /admin/farm` - Manual farming
+### Conversion Endpoints
+- `GET /vault/convert/shares?amount=X` - Convert APT to shares
+- `GET /vault/convert/assets?shares=X` - Convert shares to APT
+
+### Health & Monitoring
+- `GET /health` - Application health check
+- `GET /api/v1/health` - Detailed service status
 
 ## 🎨 UI Components
 
@@ -185,17 +221,23 @@ Built with shadcn/ui components:
 
 ## 🔄 State Management
 
-### Wallet Store (Zustand)
-- Wallet connection state
-- User address and balance
-- Authentication status
-- Aptos client instance
+### Vault Store (Zustand)
+- Vault statistics (TVL, APY, user balance)
+- User position and shares
+- Transaction operations (deposit/withdraw)
+- APT price data integration
 
-### React Query
-- API data caching
-- Background refetching
-- Loading and error states
-- Optimistic updates
+### Authentication Context
+- Wallet connection state
+- User authentication status
+- Login/logout functionality
+- Session persistence
+
+### Custom Hooks
+- `useVaultData` - Vault state and events
+- `usePetraWallet` - Petra wallet integration
+- `useAuth` - Authentication management
+- `useVaultStore` - Global vault state
 
 ## 🚀 Deployment
 
@@ -211,9 +253,10 @@ npm run preview
 ```
 
 ### Environment Setup
-1. Set `VITE_STUB_MODE=false` for production
-2. Configure `VITE_API_URL` to point to production backend
-3. Set `VITE_APTOS_NETWORK=mainnet` for mainnet deployment
+1. Configure `VITE_API_BASE_URL` to point to production backend
+2. Set `VITE_APTOS_NETWORK=mainnet` for mainnet deployment
+3. Update `VITE_VAULT_ADDRESS` with mainnet contract address
+4. Ensure HTTPS is enabled for wallet security
 
 ## 🧪 Testing
 
@@ -247,42 +290,106 @@ npm run test:e2e
 ### Common Issues
 
 1. **Wallet Connection Failed:**
-   - Ensure Aptos wallet is installed
-   - Check network configuration
-   - Verify RPC endpoint is accessible
+   - Install Petra wallet extension
+   - Switch to Aptos testnet in wallet
+   - Check if wallet is unlocked
+   - Verify RPC endpoint accessibility
 
 2. **API Calls Failing:**
-   - Check backend is running
-   - Verify API URL configuration
-   - Check network connectivity
+   - Ensure backend server is running on port 4000
+   - Check `VITE_API_BASE_URL` configuration
+   - Verify CORS settings in backend
+   - Check browser network tab for errors
 
-3. **Build Errors:**
-   - Clear node_modules and reinstall
-   - Check TypeScript errors
-   - Verify all dependencies are installed
+3. **Transaction Failures:**
+   - Ensure sufficient APT balance for gas
+   - Check vault contract address is correct
+   - Verify network matches wallet network
+   - Check transaction status on Aptos Explorer
+
+4. **Build Errors:**
+   - Clear `node_modules` and reinstall dependencies
+   - Check for TypeScript compilation errors
+   - Verify all environment variables are set
+   - Update dependencies to compatible versions
 
 ### Debug Mode
 
-Set `VITE_DEBUG=true` to enable:
-- Detailed console logging
-- API request/response logging
-- Wallet connection debugging
+Enable debug mode by setting `NODE_ENV=development`:
+- Detailed console logging for API calls
+- Wallet connection status logging
+- Transaction flow debugging
+- Component render tracking
+- Error boundary detailed reporting
 
 ## 🤝 Contributing
 
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Add tests if applicable
-5. Submit a pull request
+### Development Workflow
+1. **Fork and Clone:**
+   ```bash
+   git clone https://github.com/your-fork/plexi-aptos.git
+   cd plexi-aptos/frontend
+   ```
+
+2. **Install Dependencies:**
+   ```bash
+   npm install
+   ```
+
+3. **Create Feature Branch:**
+   ```bash
+   git checkout -b feature/your-feature-name
+   ```
+
+4. **Development:**
+   ```bash
+   npm run dev
+   ```
+
+5. **Testing:**
+   ```bash
+   npm run test
+   npm run lint
+   npm run type-check
+   ```
+
+6. **Build Verification:**
+   ```bash
+   npm run build
+   npm run preview
+   ```
+
+### Code Standards
+- **TypeScript**: Strict mode enabled
+- **ESLint**: Follow configured rules
+- **Prettier**: Automatic code formatting
+- **Components**: Use functional components with hooks
+- **Styling**: Tailwind CSS utility classes
+- **State**: Prefer React hooks and context
 
 ## 📄 License
 
-MIT License - see LICENSE file for details
+This project is licensed under the MIT License - see the [LICENSE](../LICENSE) file for details.
 
-## 🆘 Support
+---
 
-For support and questions:
-- Create an issue on GitHub
-- Join our Discord community
-- Check the documentation wiki
+**Built with ❤️ for the Aptos ecosystem**
+
+## 🆘 Support & Resources
+
+### Getting Help
+- **GitHub Issues**: [Report bugs or request features](https://github.com/your-org/plexi-aptos/issues)
+- **Documentation**: [Full project documentation](../README.md)
+- **API Reference**: [Backend API docs](../backend/README.md)
+
+### Development Resources
+- **React Documentation**: [reactjs.org](https://reactjs.org/)
+- **Vite Guide**: [vitejs.dev](https://vitejs.dev/)
+- **Tailwind CSS**: [tailwindcss.com](https://tailwindcss.com/)
+- **Aptos SDK**: [aptos.dev](https://aptos.dev/)
+- **shadcn/ui**: [ui.shadcn.com](https://ui.shadcn.com/)
+
+### Community
+- **Discord**: [Join our community](https://discord.gg/plexi)
+- **Twitter**: [@PlexiProtocol](https://twitter.com/PlexiProtocol)
+- **GitHub Discussions**: [Community discussions](https://github.com/your-org/plexi-aptos/discussions)

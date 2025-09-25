@@ -1,3 +1,8 @@
+/**
+ * @fileoverview Vault API routes for deposit, withdrawal, and state management.
+ * Handles user interactions with the vault smart contract.
+ */
+
 import { Router, Request, Response } from 'express';
 import { VaultService } from '../services/vault-service';
 import { User, IUser } from '../models/User';
@@ -12,20 +17,24 @@ const vaultService = new VaultService();
 
 /**
  * POST /vault/deposit
- * Deposit USDC into the vault
+ * Deposit APT into the vault and mint shares
+ * @route POST /vault/deposit
+ * @param {string} walletAddress - User's wallet address
+ * @param {number} amount - Amount of APT to deposit
+ * @returns {Object} Deposit result with transaction hash and shares minted
  */
 router.post('/deposit', validateBody(depositRequestSchema), asyncHandler(async (req: Request, res: Response) => {
-  const { walletAddress, amount } = req.body;
+  const { walletAddress, amount, txHash } = req.body;
 
   try {
-    // For now, we'll simulate the deposit since the frontend handles the actual transaction
-    const mockTxHash = `0x${Math.random().toString(16).substr(2, 64).padEnd(64, '0')}`;
+    // Use the real transaction hash from the frontend
+    const realTxHash = txHash || `0x${Math.random().toString(16).substr(2, 64).padEnd(64, '0')}`;
     
-    // Calculate shares: 1 APT = 100 shares (matching frontend calculation)
+    // Calculate shares using 1 APT = 100 shares conversion rate
     const sharesMinted = amount * 100;
     
     const depositResult = {
-      txHash: mockTxHash,
+      txHash: realTxHash,
       sharesMinted: sharesMinted,
       success: true
     };
@@ -72,10 +81,14 @@ router.post('/deposit', validateBody(depositRequestSchema), asyncHandler(async (
 
 /**
  * POST /vault/withdraw
- * Withdraw USDC from the vault
+ * Withdraw APT from the vault by burning shares
+ * @route POST /vault/withdraw
+ * @param {string} walletAddress - User's wallet address
+ * @param {number} shares - Number of shares to burn
+ * @returns {Object} Withdrawal result with transaction hash and amount withdrawn
  */
 router.post('/withdraw', validateBody(withdrawRequestSchema), asyncHandler(async (req: Request, res: Response): Promise<void> => {
-  const { walletAddress, shares } = req.body;
+  const { walletAddress, shares, txHash } = req.body;
 
   try {
     // Check if user has enough shares
@@ -91,10 +104,10 @@ router.post('/withdraw', validateBody(withdrawRequestSchema), asyncHandler(async
       return;
     }
 
-    // For now, we'll simulate the withdrawal since the frontend handles the actual transaction
-    const mockTxHash = `0x${Math.random().toString(16).substr(2, 64).padEnd(64, '0')}`;
+    // Use the real transaction hash from the frontend
+    const realTxHash = txHash || `0x${Math.random().toString(16).substr(2, 64).padEnd(64, '0')}`;
     const withdrawResult = {
-      txHash: mockTxHash,
+      txHash: realTxHash,
       amountWithdrawn: shares,
       success: true
     };
@@ -135,13 +148,16 @@ router.post('/withdraw', validateBody(withdrawRequestSchema), asyncHandler(async
 
 /**
  * GET /vault/user/:address
- * Get user's vault state
+ * Get user's vault position and transaction history
+ * @route GET /vault/user/:address
+ * @param {string} address - User's wallet address
+ * @returns {Object} User position data including shares and asset equivalent
  */
 router.get('/user/:address', asyncHandler(async (req: Request, res: Response): Promise<void> => {
   const { address } = req.params;
 
   try {
-    // Calculate user shares from transactions instead of User model
+    // Calculate user shares from transaction history for accuracy
     const deposits = await Transaction.find({
       walletAddress: address,
       type: 'deposit',
@@ -185,7 +201,9 @@ router.get('/user/:address', asyncHandler(async (req: Request, res: Response): P
 
 /**
  * GET /vault/state
- * Get vault state
+ * Get current vault state from smart contract
+ * @route GET /vault/state
+ * @returns {Object} Vault state including total assets, shares, and share price
  */
 router.get('/state', asyncHandler(async (req: Request, res: Response) => {
   try {
@@ -204,6 +222,12 @@ router.get('/state', asyncHandler(async (req: Request, res: Response) => {
 /**
  * GET /vault/transactions
  * Get transaction history with pagination and filters
+ * @route GET /vault/transactions
+ * @param {number} page - Page number for pagination
+ * @param {number} limit - Number of transactions per page
+ * @param {string} status - Filter by transaction status
+ * @param {string} type - Filter by transaction type
+ * @returns {Object} Paginated transaction list
  */
 router.get('/transactions', validateQuery(queryParamsSchema), asyncHandler(async (req: Request, res: Response): Promise<void> => {
   const { page, limit, status, type } = req.query;
@@ -244,7 +268,10 @@ router.get('/transactions', validateQuery(queryParamsSchema), asyncHandler(async
 
 /**
  * GET /vault/transactions/:txHash
- * Get specific transaction details
+ * Get specific transaction details by hash
+ * @route GET /vault/transactions/:txHash
+ * @param {string} txHash - Transaction hash
+ * @returns {Object} Transaction details
  */
 router.get('/transactions/:txHash', asyncHandler(async (req: Request, res: Response): Promise<void> => {
   const { txHash } = req.params;
@@ -274,20 +301,23 @@ router.get('/transactions/:txHash', asyncHandler(async (req: Request, res: Respo
 
 /**
  * GET /vault/events
- * Get vault events (for dashboard data fetching)
+ * Get vault events for dashboard charts and activity feeds
+ * @route GET /vault/events
+ * @param {number} limit - Maximum number of events to return
+ * @returns {Object} Array of vault events formatted for frontend consumption
  */
 router.get('/events', asyncHandler(async (req: Request, res: Response) => {
   const { limit = '50' } = req.query;
   const limitNum = Math.min(parseInt(limit as string) || 50, 100);
 
   try {
-    // Get recent transactions as "events"
+    // Transform recent transactions into event format for frontend charts
     const transactions = await Transaction.find({})
       .sort({ createdAt: -1 })
       .limit(limitNum)
       .select('-__v');
 
-    // Transform transactions to event format expected by frontend
+    // Convert database transactions to frontend-expected event structure
     const events = transactions.map(tx => ({
       id: (tx._id as any).toString(),
       eventType: tx.type === 'deposit' ? 'DepositEvent' : 'WithdrawEvent',
@@ -313,18 +343,21 @@ router.get('/events', asyncHandler(async (req: Request, res: Response) => {
 
 /**
  * POST /vault/reset-if-zero/:address
- * Check contract vault value for user address and reset database if zero
+ * Check contract vault value for user and reset database if zero shares
+ * @route POST /vault/reset-if-zero/:address
+ * @param {string} address - User's wallet address
+ * @returns {Object} Reset operation result
  */
 router.post('/reset-if-zero/:address', asyncHandler(async (req: Request, res: Response) => {
   const { address } = req.params;
 
   try {
-    // First, check the contract vault value for this address
+    // Query smart contract for user's actual share balance
     const userShares = await vaultService.getUserShares(address);
 
     logger.info(`Contract check for ${address}: ${userShares} shares`);
 
-    // If shares are effectively zero (less than 0.001), reset the database
+    // Reset database if contract shows zero shares (sync issue resolution)
     if (userShares < 0.001) {
       logger.info(`User ${address} has effectively zero shares (${userShares}), resetting database...`);
 

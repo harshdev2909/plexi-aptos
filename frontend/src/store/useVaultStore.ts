@@ -1,7 +1,15 @@
+/**
+ * @fileoverview Zustand store for vault state management.
+ * Handles vault statistics, user positions, and transaction operations.
+ */
+
 import { create } from 'zustand';
 import { apiService } from '../services/api';
 import { priceService, PriceData } from '../services/priceService';
 
+/**
+ * Vault statistics interface
+ */
 interface VaultStats {
   tvl: number;
   userBalance: number;
@@ -12,6 +20,9 @@ interface VaultStats {
   aptPrice: PriceData | null;
 }
 
+/**
+ * Vault state interface for Zustand store
+ */
 interface VaultState {
   stats: VaultStats;
   isLoading: boolean;
@@ -23,6 +34,9 @@ interface VaultState {
   setUserAddress: (address: string) => void;
 }
 
+/**
+ * Zustand store for vault state management
+ */
 export const useVaultStore = create<VaultState>((set, get) => ({
   stats: {
     tvl: 0,
@@ -36,10 +50,17 @@ export const useVaultStore = create<VaultState>((set, get) => ({
   isLoading: false,
   userAddress: null,
   
+  /**
+   * Set the current user's wallet address
+   * @param {string} address - The wallet address
+   */
   setUserAddress: (address: string) => {
     set({ userAddress: address });
   },
   
+  /**
+   * Update vault statistics from API
+   */
   updateStats: async () => {
     set({ isLoading: true });
     try {
@@ -56,7 +77,7 @@ export const useVaultStore = create<VaultState>((set, get) => ({
         try {
           userPosition = await apiService.getUserPosition(userAddress);
         } catch (error) {
-          console.warn('Failed to get user position:', error);
+          // User position not available, using default values
         }
       }
       
@@ -67,7 +88,7 @@ export const useVaultStore = create<VaultState>((set, get) => ({
           userShares: userPosition ? parseFloat(userPosition.shares) || 0 : 0,
           hedgePercentage: vaultState.strategiesCount > 0 ? Math.round(65 + Math.random() * 10) : 65,
           farmingAllocation: vaultState.strategiesCount > 0 ? Math.round(30 + Math.random() * 10) : 35,
-          totalRewards: userPosition ? Object.values(userPosition.pendingRewards || {}).reduce((sum, reward) => sum + parseFloat(String(reward)), 0) : 0,
+          totalRewards: userPosition ? Object.values(userPosition.pendingRewards || {}).reduce((sum: number, reward: unknown) => sum + parseFloat(String(reward)), 0) : 0,
           aptPrice,
         },
         isLoading: false,
@@ -78,6 +99,10 @@ export const useVaultStore = create<VaultState>((set, get) => ({
     }
   },
   
+  /**
+   * Perform a deposit operation
+   * @param {number} amount - Amount to deposit
+   */
   deposit: async (amount: number) => {
     const { userAddress } = get();
     if (!userAddress) {
@@ -108,6 +133,10 @@ export const useVaultStore = create<VaultState>((set, get) => ({
     }
   },
   
+  /**
+   * Perform a withdrawal operation
+   * @param {number} shares - Number of shares to withdraw
+   */
   withdraw: async (shares: number) => {
     const { userAddress } = get();
     if (!userAddress) {
@@ -139,6 +168,9 @@ export const useVaultStore = create<VaultState>((set, get) => ({
     }
   },
   
+  /**
+   * Claim pending rewards (placeholder implementation)
+   */
   claimRewards: async () => {
     const { userAddress } = get();
     if (!userAddress) {
@@ -147,8 +179,7 @@ export const useVaultStore = create<VaultState>((set, get) => ({
 
     set({ isLoading: true });
     try {
-      // TODO: Implement actual reward claiming via API
-      // For now, just reset rewards after a delay to simulate claiming
+      // Simulate reward claiming with delay (to be replaced with actual API call)
       setTimeout(() => {
         const currentStats = get().stats;
         set({

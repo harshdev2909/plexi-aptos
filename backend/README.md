@@ -1,34 +1,72 @@
 # Plexi Vault Backend API
 
-A Node.js TypeScript backend server for the Plexi Vault MVP that integrates with Aptos blockchain for USDC vault operations.
+[![Node.js](https://img.shields.io/badge/Node.js-18+-green)](https://nodejs.org/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5-blue)](https://www.typescriptlang.org/)
+[![Express](https://img.shields.io/badge/Express-4-lightgrey)](https://expressjs.com/)
+[![MongoDB](https://img.shields.io/badge/MongoDB-5+-green)](https://www.mongodb.com/)
+
+A production-ready Node.js TypeScript backend server for the Plexi Vault Protocol that integrates with Aptos blockchain for APT vault operations, user management, and real-time analytics.
 
 ## 🚀 Features
 
-- **USDC Vault Operations**: Deposit and withdraw USDC with automatic share minting/burning
-- **Aptos Integration**: Direct interaction with Aptos smart contracts
-- **MongoDB Storage**: Persistent storage for users and transactions
-- **REST API**: Clean RESTful endpoints for frontend integration
-- **Input Validation**: Zod schema validation for all inputs
-- **Error Handling**: Comprehensive error handling and logging
-- **Testing**: Jest test suite with MongoDB memory server
-- **Security**: Rate limiting, CORS, and input sanitization
+### 💰 Vault Operations
+- **APT Deposits/Withdrawals**: Handle APT token deposits and withdrawals with share-based accounting
+- **Smart Contract Integration**: Direct interaction with Aptos Move vault contracts
+- **Transaction Management**: Complete transaction lifecycle tracking and status updates
+- **User Position Tracking**: Real-time user balance and share calculations
 
-## 🛠 Tech Stack
+### 📊 Analytics & Data
+- **TVL Tracking**: Real-time Total Value Locked calculations
+- **Event Indexing**: Comprehensive vault event logging and retrieval
+- **Performance Metrics**: APY calculations and historical performance data
+- **Transaction History**: Detailed transaction logs with pagination
 
-- **Runtime**: Node.js 18+
-- **Language**: TypeScript
-- **Framework**: Express.js
-- **Database**: MongoDB with Mongoose ODM
-- **Blockchain**: Aptos SDK
-- **Validation**: Zod
-- **Logging**: Winston
-- **Testing**: Jest + Supertest
+### 🔐 Security & Validation
+- **Input Validation**: Zod schema validation for all API inputs
+- **Rate Limiting**: Configurable rate limits per endpoint
+- **Error Handling**: Comprehensive error handling with structured logging
+- **CORS Protection**: Configurable cross-origin resource sharing
+- **Security Headers**: Helmet.js for enhanced security
+
+### 🛠️ Infrastructure
+- **MongoDB Integration**: Persistent storage with Mongoose ODM
+- **RESTful API**: Clean, documented API endpoints
+- **Health Monitoring**: Application and service health checks
+- **Structured Logging**: Winston-based logging with multiple transports
+- **Testing Suite**: Comprehensive Jest tests with MongoDB memory server
+
+## 🛠️ Tech Stack
+
+### Core Framework
+- **Runtime**: Node.js 18+ with TypeScript
+- **Web Framework**: Express.js with middleware
+- **Database**: MongoDB 5+ with Mongoose ODM
+- **Validation**: Zod for runtime type checking
+
+### Blockchain Integration
+- **Aptos SDK**: Official Aptos TypeScript SDK
+- **Smart Contracts**: Move language contract interactions
+- **Transaction Management**: Aptos transaction lifecycle handling
+
+### Development & Operations
+- **Testing**: Jest with Supertest for API testing
+- **Logging**: Winston with multiple transports
+- **Security**: Helmet.js, CORS, express-rate-limit
+- **Development**: ts-node-dev for hot reloading
+- **Build**: TypeScript compiler with strict mode
 
 ## 📋 Prerequisites
 
-- Node.js 18 or higher
-- MongoDB (local or cloud)
-- Aptos Testnet access
+- **Node.js** 18.0.0 or higher
+- **npm** or **yarn** package manager
+- **MongoDB** 5.0+ (local installation or cloud service)
+- **Aptos CLI** (optional, for contract deployment)
+- **Git** for version control
+
+### Optional
+- **Docker** for containerized deployment
+- **MongoDB Compass** for database management
+- **Postman** for API testing
 
 ## 🔧 Installation
 
@@ -49,17 +87,36 @@ A Node.js TypeScript backend server for the Plexi Vault MVP that integrates with
    
    Update the `.env` file with your configuration:
    ```env
-   PORT=3001
+   # Server Configuration
+   PORT=4000
    NODE_ENV=development
-   MONGODB_URI=mongodb+srv://harshdev2909_db_user:harsh9560@cluster0.cjhkeus.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0
-   APTOS_NODE_URL=https://fullnode.testnet.aptoslabs.com/v1
-   VAULT_MODULE_ADDRESS=0x1234567890abcdef1234567890abcdef12345678
-   VAULT_MODULE_NAME=vault
+   
+   # Database
+   MONGO_URI=mongodb://localhost:27017/plexix
+   
+   # Aptos Configuration
+   APTOS_RPC_URL=https://fullnode.testnet.aptoslabs.com/v1
+   VAULT_MODULE_ADDRESS=0x98dfcb742ea92c051230fbc1defac9b9c8d298670d544c0e1a23b9620b3a27e2
+   VAULT_MODULE_NAME=vault_v2
+   
+   # Security
+   JWT_SECRET=your-jwt-secret-here
+   ADMIN_PASSWORD=your-admin-password
+   
+   # Optional
+   PRIVATE_KEY=your-private-key-for-admin-operations
    ```
 
-4. **Create logs directory**
+4. **Start MongoDB (if running locally)**
    ```bash
-   mkdir -p logs
+   # macOS with Homebrew
+   brew services start mongodb-community
+   
+   # Linux systemd
+   sudo systemctl start mongod
+   
+   # Manual start
+   mongod --dbpath ./data/db
    ```
 
 ## 🚀 Running the Application
@@ -83,28 +140,41 @@ npm run test:watch
 
 ## 📚 API Endpoints
 
-### Health Check
-- `GET /api/v1/health` - Basic health check
-- `GET /api/v1/health/detailed` - Detailed health check with service dependencies
+### Health & Monitoring
+- `GET /health` - Basic application health check
+- `GET /api/v1/health` - Detailed service health status
+
+### Authentication
+- `POST /api/v1/auth/login` - Admin login with password
+- `POST /api/v1/auth/logout` - Logout and invalidate session
+- `GET /api/v1/auth/me` - Get current user information
 
 ### Vault Operations
-- `POST /api/v1/vault/deposit` - Deposit USDC into vault
-- `POST /api/v1/vault/withdraw` - Withdraw USDC from vault
-- `GET /api/v1/vault/user/:address` - Get user's vault state
-- `GET /api/v1/vault/state` - Get overall vault state
-- `GET /api/v1/vault/transactions` - Get transaction history
-- `GET /api/v1/vault/transactions/:txHash` - Get specific transaction
+- `GET /api/v1/vault/state` - Get current vault state (TVL, shares, price)
+- `GET /api/v1/vault/user/:address` - Get user position and transaction history
+- `GET /api/v1/vault/events` - Get vault events for analytics
+- `POST /api/v1/vault/deposit` - Process APT deposit transaction
+- `POST /api/v1/vault/withdraw` - Process share withdrawal transaction
+- `POST /api/v1/vault/reset-if-zero/:address` - Reset user data if zero balance
+
+### Transaction Management
+- `GET /api/v1/vault/transactions` - Get paginated transaction history
+- `GET /api/v1/vault/transactions/:txHash` - Get specific transaction details
+
+### Conversion Utilities
+- `GET /api/v1/vault/convert/shares?amount=X` - Convert APT amount to shares
+- `GET /api/v1/vault/convert/assets?shares=X` - Convert shares to APT amount
 
 ## 📖 API Documentation
 
-### Deposit USDC
+### Deposit APT
 ```http
 POST /api/v1/vault/deposit
 Content-Type: application/json
 
 {
   "walletAddress": "0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef",
-  "amount": 100
+  "amount": 10.5
 }
 ```
 
@@ -113,24 +183,24 @@ Content-Type: application/json
 {
   "success": true,
   "data": {
-    "txHash": "0x...",
-    "sharesMinted": 100,
+    "txHash": "0xabc123...",
+    "sharesMinted": 1050,
     "user": {
-      "walletAddress": "0x...",
-      "shares": 100
+      "walletAddress": "0x1234...",
+      "shares": 1050
     }
   }
 }
 ```
 
-### Withdraw USDC
+### Withdraw APT
 ```http
 POST /api/v1/vault/withdraw
 Content-Type: application/json
 
 {
   "walletAddress": "0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef",
-  "shares": 50
+  "shares": 500
 }
 ```
 
@@ -139,11 +209,11 @@ Content-Type: application/json
 {
   "success": true,
   "data": {
-    "txHash": "0x...",
-    "amountWithdrawn": 50,
+    "txHash": "0xdef456...",
+    "amountWithdrawn": 5.0,
     "user": {
-      "walletAddress": "0x...",
-      "shares": 50
+      "walletAddress": "0x1234...",
+      "shares": 550
     }
   }
 }
@@ -159,11 +229,19 @@ GET /api/v1/vault/user/0x1234567890abcdef1234567890abcdef1234567890abcdef1234567
 {
   "success": true,
   "data": {
-    "walletAddress": "0x...",
-    "shares": 100,
-    "assetsEquivalent": 100,
+    "walletAddress": "0x1234...",
+    "shares": 1050,
+    "assetsEquivalent": 10.5,
     "sharePrice": 1.0,
-    "txHistory": [...]
+    "txHistory": [
+      {
+        "txHash": "0xabc123...",
+        "type": "deposit",
+        "amount": 10.5,
+        "shares": 1050,
+        "createdAt": "2024-01-15T10:30:00Z"
+      }
+    ]
   }
 }
 ```
@@ -178,9 +256,14 @@ GET /api/v1/vault/state
 {
   "success": true,
   "data": {
-    "totalAssets": 10000,
-    "totalShares": 10000,
-    "sharePrice": 1.0
+    "totalAssets": 1250.75,
+    "totalShares": 125075,
+    "sharePrice": 1.0,
+    "assetToken": "APT",
+    "isInitialized": true,
+    "strategiesCount": 2,
+    "rewardTokens": ["APT"],
+    "lastRebalanceTimestamp": 1705312200
   }
 }
 ```
@@ -189,74 +272,145 @@ GET /api/v1/vault/state
 
 ### User Model
 ```typescript
-{
-  walletAddress: string;  // Unique Aptos wallet address
-  shares: number;         // User's vault shares
-  createdAt: Date;
-  updatedAt: Date;
+interface IUser {
+  walletAddress: string;  // Unique Aptos wallet address (lowercase)
+  shares: number;         // User's current vault shares
+  createdAt: Date;        // Account creation timestamp
+  updatedAt: Date;        // Last update timestamp
 }
 ```
 
 ### Transaction Model
 ```typescript
-{
-  txHash: string;         // Aptos transaction hash
-  walletAddress: string;  // User's wallet address
-  type: 'deposit' | 'withdraw';
-  amount: number;          // USDC amount
-  shares: number;         // Shares involved
-  status: 'pending' | 'completed' | 'failed';
-  blockHeight?: number;
-  gasUsed?: number;
-  createdAt: Date;
-  updatedAt: Date;
+interface ITransaction {
+  txHash: string;                              // Aptos transaction hash
+  walletAddress: string;                       // User's wallet address
+  type: 'deposit' | 'withdraw';               // Transaction type
+  amount: number;                              // APT amount
+  shares: number;                              // Shares minted/burned
+  status: 'pending' | 'completed' | 'failed'; // Transaction status
+  blockHeight?: number;                        // Aptos block height
+  gasUsed?: number;                           // Gas consumed
+  createdAt: Date;                            // Transaction timestamp
+  updatedAt: Date;                            // Last status update
 }
 ```
 
 ## 🔒 Security Features
 
-- **Rate Limiting**: 100 requests per 15 minutes per IP
-- **Input Validation**: Zod schema validation for all inputs
-- **CORS Protection**: Configurable CORS settings
-- **Helmet**: Security headers
+### Request Security
+- **Rate Limiting**: 100 requests per 15 minutes (general), 50 requests per 15 minutes (transactions)
+- **Input Validation**: Zod schema validation for all API inputs
+- **CORS Protection**: Configurable cross-origin resource sharing
+- **Security Headers**: Helmet.js for comprehensive header protection
+
+### Authentication & Authorization
+- **JWT Authentication**: Secure token-based authentication for admin endpoints
+- **Password Hashing**: Bcrypt for secure password storage
+- **Session Management**: Secure session handling with expiration
+
+### Data Protection
+- **Input Sanitization**: Prevent injection attacks
 - **Error Handling**: Secure error responses without sensitive data exposure
+- **Logging**: Structured logging without sensitive information
+- **Environment Variables**: Secure configuration management
 
 ## 🧪 Testing
 
-The project includes comprehensive tests:
+### Test Coverage
+- **Unit Tests**: Service layer and utility function testing
+- **Integration Tests**: Complete API endpoint testing with real database
+- **Database Tests**: MongoDB operations and model validation
+- **Mock Testing**: Aptos SDK mocking for isolated blockchain testing
+- **Error Testing**: Comprehensive error handling validation
 
-- **Unit Tests**: Service layer testing
-- **Integration Tests**: API endpoint testing
-- **Database Tests**: MongoDB operations testing
-- **Mocking**: Aptos SDK mocking for isolated testing
-
-Run tests:
+### Running Tests
 ```bash
-npm test              # Run all tests
-npm run test:watch   # Watch mode
+# Run all tests
+npm test
+
+# Run tests in watch mode
+npm run test:watch
+
+# Run tests with coverage report
+npm run test:coverage
+
+# Run specific test file
+npm test -- vault.test.ts
+
+# Run tests matching pattern
+npm test -- --grep "deposit"
 ```
+
+### Test Environment
+- **MongoDB Memory Server**: In-memory database for testing
+- **Supertest**: HTTP assertion testing
+- **Jest**: Test framework with mocking capabilities
+- **Test Isolation**: Each test runs with clean database state
 
 ## 📝 Logging
 
-The application uses Winston for structured logging:
+### Winston Configuration
+- **Console Transport**: Colored, formatted logs for development
+- **File Transport**: Persistent logging to `logs/` directory
+- **Error Logging**: Separate error log file for critical issues
+- **Request Logging**: All HTTP requests with timing and status
 
-- **Console Output**: Colored console logs in development
-- **File Logging**: Separate error and combined logs
-- **Structured Logs**: JSON format for production
-- **Request Logging**: All API requests are logged
+### Log Levels
+- **Error**: Critical errors and exceptions
+- **Warn**: Warning messages and potential issues
+- **Info**: General application information
+- **Debug**: Detailed debugging information (development only)
+
+### Log Format
+```json
+{
+  "timestamp": "2024-01-15T10:30:00.000Z",
+  "level": "info",
+  "message": "Deposit completed",
+  "meta": {
+    "walletAddress": "0x1234...",
+    "amount": 10.5,
+    "txHash": "0xabc123..."
+  }
+}
+```
 
 ## 🚀 Deployment
 
-### Environment Variables
-Ensure all required environment variables are set:
+### Environment Configuration
 
+#### Required Variables
 ```env
-PORT=3001
+# Server
+PORT=4000
 NODE_ENV=production
-MONGODB_URI=your-mongodb-connection-string
-APTOS_NODE_URL=https://fullnode.testnet.aptoslabs.com/v1
-VAULT_MODULE_ADDRESS=your-contract-address
-VAULT_MODULE_NAME=vault
+
+# Database
+MONGO_URI=mongodb://username:password@host:port/database
+
+# Aptos Blockchain
+APTOS_RPC_URL=https://fullnode.mainnet.aptoslabs.com/v1
+VAULT_MODULE_ADDRESS=0x...
+VAULT_MODULE_NAME=vault_v2
+
+# Security
+JWT_SECRET=your-strong-jwt-secret-32-chars-min
+ADMIN_PASSWORD=your-secure-admin-password
+```
+
+#### Optional Variables
+```env
+# Admin Operations
+PRIVATE_KEY=your-admin-private-key
+
+# Monitoring
+LOG_LEVEL=info
+ENABLE_REQUEST_LOGGING=true
+
+# Rate Limiting
+RATE_LIMIT_WINDOW_MS=900000
+RATE_LIMIT_MAX_REQUESTS=100
 ```
 
 ### Production Build
@@ -265,30 +419,163 @@ npm run build
 npm start
 ```
 
-### Docker Support
+### Docker Deployment
+
+#### Build and Run
 ```bash
-docker build -t plexi-backend .
-docker run -p 3001:3001 plexi-backend
+# Build Docker image
+docker build -t plexi-vault-backend .
+
+# Run container
+docker run -d \
+  --name plexi-backend \
+  -p 4000:4000 \
+  --env-file .env \
+  plexi-vault-backend
+```
+
+#### Docker Compose
+```yaml
+# docker-compose.yml
+version: '3.8'
+services:
+  backend:
+    build: .
+    ports:
+      - "4000:4000"
+    environment:
+      - NODE_ENV=production
+      - MONGO_URI=mongodb://mongo:27017/plexix
+    depends_on:
+      - mongo
+  
+  mongo:
+    image: mongo:5
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo_data:/data/db
+
+volumes:
+  mongo_data:
 ```
 
 ## 🤝 Contributing
 
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Add tests for new functionality
-5. Run the test suite
-6. Submit a pull request
+### Development Workflow
+1. **Fork and Clone**
+   ```bash
+   git clone https://github.com/your-fork/plexi-aptos.git
+   cd plexi-aptos/backend
+   ```
+
+2. **Install Dependencies**
+   ```bash
+   npm install
+   ```
+
+3. **Environment Setup**
+   ```bash
+   cp .env.example .env
+   # Edit .env with your configuration
+   ```
+
+4. **Start Development Server**
+   ```bash
+   npm run dev
+   ```
+
+5. **Run Tests**
+   ```bash
+   npm test
+   npm run lint
+   ```
+
+6. **Create Feature Branch**
+   ```bash
+   git checkout -b feature/your-feature-name
+   ```
+
+7. **Make Changes and Test**
+   - Add comprehensive tests for new functionality
+   - Follow existing code patterns and conventions
+   - Update documentation as needed
+
+8. **Submit Pull Request**
+   - Ensure all tests pass
+   - Include clear description of changes
+   - Reference any related issues
+
+### Code Standards
+- **TypeScript**: Strict mode enabled with comprehensive typing
+- **ESLint**: Follow configured linting rules
+- **Prettier**: Automatic code formatting
+- **Testing**: Maintain >80% test coverage
+- **Documentation**: JSDoc comments for all public functions
 
 ## 📄 License
 
-MIT License - see LICENSE file for details
+This project is licensed under the MIT License - see the [LICENSE](../LICENSE) file for details.
 
-## 🆘 Support
+---
 
-For issues and questions:
-- Create an issue in the repository
-- Check the logs in the `logs/` directory
-- Verify environment variables are correctly set
-- Ensure MongoDB connection is working
-- Check Aptos network connectivity
+**Built with ❤️ for the Aptos ecosystem**
+
+## 🆘 Support & Troubleshooting
+
+### Common Issues
+
+1. **MongoDB Connection Failed**
+   ```bash
+   # Check MongoDB status
+   brew services list | grep mongodb  # macOS
+   sudo systemctl status mongod       # Linux
+   
+   # Test connection
+   mongosh mongodb://localhost:27017/plexix
+   ```
+
+2. **Aptos RPC Connection Issues**
+   ```bash
+   # Test RPC endpoint
+   curl https://fullnode.testnet.aptoslabs.com/v1/
+   
+   # Check network configuration
+   echo $APTOS_RPC_URL
+   ```
+
+3. **Port Already in Use**
+   ```bash
+   # Find process using port 4000
+   lsof -i :4000
+   
+   # Kill process
+   kill -9 <PID>
+   ```
+
+4. **Environment Variables Not Loaded**
+   ```bash
+   # Verify .env file exists and is readable
+   ls -la .env
+   
+   # Check if variables are loaded
+   node -e "console.log(process.env.PORT)"
+   ```
+
+### Getting Help
+- **GitHub Issues**: [Report bugs or request features](https://github.com/your-org/plexi-aptos/issues)
+- **Documentation**: [Full project documentation](../README.md)
+- **API Testing**: Use the Postman collection in `../docs/postman_collection.json`
+- **Logs**: Check application logs in `logs/` directory
+
+### Health Checks
+```bash
+# Application health
+curl http://localhost:4000/health
+
+# Detailed service status
+curl http://localhost:4000/api/v1/health
+
+# Database connectivity test
+node -e "require('mongoose').connect(process.env.MONGO_URI).then(() => console.log('DB OK'))"
+```

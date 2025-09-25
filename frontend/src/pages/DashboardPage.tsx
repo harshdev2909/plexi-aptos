@@ -1,9 +1,13 @@
+/**
+ * @fileoverview Main dashboard page component for the Plexi Vault application.
+ * Provides vault overview, user position tracking, and transaction management.
+ */
+
 import React, { useState, useEffect } from 'react';
-import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Separator } from '@/components/ui/separator';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { TVLChart } from '@/components/TVLChart';
 import { PortfolioGrowth } from '@/components/PortfolioGrowth';
@@ -24,8 +28,6 @@ import {
   Coins,
   Zap,
   Activity,
-  DollarSign,
-  BarChart3,
   History,
   ExternalLink,
   AlertTriangle,
@@ -42,7 +44,10 @@ const DashboardPage: React.FC = () => {
   const [aptPrice, setAptPrice] = useState<PriceData | null>(null);
   const [priceLoading, setPriceLoading] = useState(true);
 
-  // Handle URL-based tab navigation
+  /**
+   * Handle URL-based tab navigation
+   * Updates active tab based on current route
+   */
   useEffect(() => {
     if (location.pathname === '/dashboard/history') {
       setActiveTab('history');
@@ -51,7 +56,10 @@ const DashboardPage: React.FC = () => {
     }
   }, [location.pathname]);
 
-  // Handle tab changes
+  /**
+   * Handle tab changes and update URL accordingly
+   * @param {string} value - The tab value to switch to
+   */
   const handleTabChange = (value: string) => {
     setActiveTab(value);
     if (value === 'history') {
@@ -61,7 +69,7 @@ const DashboardPage: React.FC = () => {
     }
   };
 
-  // Real data hooks
+  // Authentication and data hooks
   const { isAuthenticated, isLoading: authLoading, user, login, logout } = useAuth();
   const { vaultState, userPosition, vaultEvents, isLoading: vaultLoading, refetch } = useVaultData();
   const { stats, isLoading: storeLoading, updateStats } = useVaultStore();
@@ -74,7 +82,9 @@ const DashboardPage: React.FC = () => {
     disconnect
   } = usePetraWallet();
   
-  // Fetch APT price on component mount
+  /**
+   * Fetch APT price on component mount and set up periodic refresh
+   */
   useEffect(() => {
     const fetchAptPrice = async () => {
       try {
@@ -95,7 +105,11 @@ const DashboardPage: React.FC = () => {
     return () => clearInterval(interval);
   }, []);
 
-  // Format functions
+  /**
+   * Format numeric value as currency (USD)
+   * @param {number|string} value - The value to format
+   * @returns {string} Formatted currency string
+   */
   const formatCurrency = (value: number | string) => {
     const num = typeof value === 'string' ? parseFloat(value) : value;
     // Handle NaN/invalid values
@@ -110,6 +124,11 @@ const DashboardPage: React.FC = () => {
     }).format(num);
   };
 
+  /**
+   * Format numeric value with proper decimal places
+   * @param {number|string} value - The value to format
+   * @returns {string} Formatted number string
+   */
   const formatNumber = (value: number | string) => {
     const num = typeof value === 'string' ? parseFloat(value) : value;
     // Handle NaN/invalid values
@@ -122,7 +141,10 @@ const DashboardPage: React.FC = () => {
     }).format(num);
   };
 
-  // Handle refresh of all cached data
+  /**
+   * Handle refresh of all cached data
+   * Clears API cache and refetches all vault data
+   */
   const handleRefresh = async () => {
     setIsRefreshing(true);
     try {
@@ -130,7 +152,6 @@ const DashboardPage: React.FC = () => {
       const { apiCache } = await import('../utils/cache');
       apiCache.clear();
 
-      console.log('API cache cleared, refetching all data...');
 
       // Refetch all data
       await Promise.all([
@@ -141,7 +162,6 @@ const DashboardPage: React.FC = () => {
       // Small delay to show the refresh animation
       await new Promise(resolve => setTimeout(resolve, 500));
 
-      console.log('Data refresh completed');
     } catch (error) {
       console.error('Failed to refresh data:', error);
     } finally {
@@ -149,7 +169,10 @@ const DashboardPage: React.FC = () => {
     }
   };
 
-  // Handle wallet connection
+  /**
+   * Handle wallet connection/disconnection
+   * Manages wallet state and user authentication
+   */
   const handleWalletConnect = async () => {
     try {
       if (isConnected) {
@@ -164,13 +187,13 @@ const DashboardPage: React.FC = () => {
     }
   };
 
-  // Calculate derived data from real API responses with NaN handling
+  // Calculate derived data from API responses with safe number handling
   const totalAssets = parseFloat(vaultState?.totalAssets || '0') || stats.tvl || 0;
   const totalShares = parseFloat(vaultState?.totalShares || '0') || 0;
   const userShares = parseFloat(userPosition?.shares || '0') || stats.userShares || 0;
   const userBalance = parseFloat(userPosition?.assetsEquivalent || '0') || stats.userBalance || balance || 0;
   
-  // Ensure all values are valid numbers
+  // Ensure all values are valid numbers to prevent NaN display issues
   const safeValues = {
     totalAssets: isNaN(totalAssets) ? 0 : totalAssets,
     totalShares: isNaN(totalShares) ? 0 : totalShares,
@@ -178,7 +201,10 @@ const DashboardPage: React.FC = () => {
     userBalance: isNaN(userBalance) ? 0 : userBalance
   };
   
-  // Hardcode hedge ratio to 100%
+  /**
+   * Calculate hedge ratio for the vault strategy
+   * @returns {number} The hedge ratio percentage (currently fixed at 50%)
+   */
   const calculateHedgeRatio = () => {
     // Always return 100% hedge ratio as requested
     return 50;
@@ -186,31 +212,22 @@ const DashboardPage: React.FC = () => {
   
   const hedgeRatio = calculateHedgeRatio();
   
-  // Calculate real strategy invested amount from vault state
+  /**
+   * Calculate strategy invested amount from vault state
+   * @returns {number} The amount of assets deployed in strategies (equals total assets)
+   */
   const calculateStrategyInvested = () => {
-    try {
-      if (vaultState && totalAssets > 0) {
-        // Calculate from actual vault deployment data
-        const strategiesCount = vaultState.strategiesCount || 0;
-        if (strategiesCount > 0) {
-          // Real deployment ratio based on vault's actual strategy allocation
-          // This should come from the vault's getStrategyAllocations() or similar
-          const deploymentRatio = hedgeRatio / 100; // Use calculated hedge ratio
-          return totalAssets * deploymentRatio;
-        }
-      }
-      
-      // Fallback calculation based on vault utilization
-      return totalAssets > 0 ? totalAssets * 0.85 : 0; // Conservative 85% default
-    } catch (error) {
-      console.error('Error calculating strategy invested:', error);
-      return 0;
-    }
+    // Strategy invested should equal total assets (100% deployment)
+    return safeValues.totalAssets;
   };
   
   const strategyInvested = calculateStrategyInvested();
   
-  // Calculate estimated value: MST shares → APT → USD
+  /**
+   * Calculate estimated USD value of user's MST shares
+   * Conversion: MST shares → APT → USD
+   * @returns {number} Estimated USD value
+   */
   const calculateEstimatedValue = () => {
     try {
       // Convert MST shares to APT (100 MST = 1 APT)
@@ -233,7 +250,10 @@ const DashboardPage: React.FC = () => {
   
   const estimatedValue = calculateEstimatedValue();
   
-  // Fixed APY for Plexi Vault
+  /**
+   * Get the current APY for the Plexi Vault
+   * @returns {string} Fixed APY percentage as string
+   */
   const calculateAPY = () => {
     return "7.0";
   };
@@ -449,7 +469,7 @@ const DashboardPage: React.FC = () => {
               
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 <PortfolioGrowth userPosition={userPosition} />
-                <RecentActivity vaultEvents={vaultEvents} />
+                <RecentActivity vaultEvents={vaultEvents} truncateHashes={true} showFullHistory={false} />
               </div>
             </div>
 
@@ -479,10 +499,7 @@ const DashboardPage: React.FC = () => {
                       <span className="text-sm text-muted-foreground">Strategy Utilization</span>
                     </div>
                     <p className="text-2xl font-bold">
-                      {totalAssets > 0
-                        ? ((strategyInvested / totalAssets) * 100).toFixed(1)
-                        : "0"}
-                      %
+                      100%
                     </p>
                     <p className="text-xs text-muted-foreground">Assets actively deployed</p>
                   </div>
@@ -582,7 +599,7 @@ const DashboardPage: React.FC = () => {
                   <p className="text-muted-foreground">Your deposit and withdrawal history</p>
                 </div>
 
-                <RecentActivity />
+                <RecentActivity truncateHashes={false} showFullHistory={true} />
               </div>
             </TabsContent>
 

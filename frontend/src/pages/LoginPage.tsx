@@ -27,17 +27,14 @@ const LoginPage: React.FC = () => {
       setIsConnecting(true);
       setError(null);
       
-      console.log('Starting Petra wallet connection...');
       
       // Connect to Petra wallet
       await connect();
       
-      console.log('Petra wallet connected, proceeding with authentication...');
       
       // Authenticate with backend
       await login();
       
-      console.log('Login successful, redirecting to dashboard...');
       toast({
         title: 'Success!',
         description: 'Petra wallet connected and authenticated successfully.',

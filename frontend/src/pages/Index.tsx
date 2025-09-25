@@ -5,7 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { Zap, Shield, TrendingUp, Target, ArrowRight, CheckCircle } from 'lucide-react';
 
-const TestLandingPage: React.FC = () => {
+const Index: React.FC = () => {
   const navigate = useNavigate();
 
   return (
@@ -231,4 +231,4 @@ const TestLandingPage: React.FC = () => {
   );
 };
 
-export default TestLandingPage;
+export default Index;
